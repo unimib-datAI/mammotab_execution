@@ -1,0 +1,37 @@
+services:
+  mongo:
+    image: "mongo:${MONGO_VERSION}"
+    container_name: "mammotab_execution_mongo"
+    ports:
+      - "${MONGO_PORT}:27017"
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    volumes:
+      - ./mongo-data:/data/db
+
+  jupyter:
+    image: cschranz/gpu-jupyter:v1.8_cuda-12.5_ubuntu-22.04_python-only
+    container_name: mammotab_execution_jupyter
+    environment:
+      JUPYTER_ENABLE_LAB: "yes"
+      RESTARTABLE: "yes"
+    env_file:
+      - ./.env
+    restart: always
+    depends_on:
+      - mongo
+    volumes:
+      - ./work:/home/jovyan/work
+      - ./my-data:/data/my-data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
