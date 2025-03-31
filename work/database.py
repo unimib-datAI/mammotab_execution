@@ -1,5 +1,5 @@
 from mongoengine import connect
-from mongoengine import Document, StringField, IntField, BooleanField
+from mongoengine import Document, StringField, IntField, BooleanField, FloatField
 
 
 class Cea(Document):
@@ -12,6 +12,7 @@ class Cea(Document):
     row = IntField()
     column = IntField()
     correct = BooleanField()
+    avg_time = FloatField()
 
 
 class Missings(Document):
@@ -30,7 +31,7 @@ class Database:
     def save_missings(self, cell: str, table: str, row: int, column: int):
         Missings(cell=cell, table=table, row=row, column=column).save()
 
-    def save_response(self, model_name: str, prompt: str, cell: str, model_response: str, correct_response: str, table: str, row: int, column: int, correct: bool):
+    def save_response(self, model_name: str, prompt: str, cell: str, model_response: str, correct_response: str, table: str, row: int, column: int, correct: bool, avg_time: float):
         Cea(
             model=model_name,
             prompt=prompt,
@@ -40,7 +41,8 @@ class Database:
             table=table,
             row=row,
             column=column,
-            correct=correct
+            correct=correct,
+            avg_time=avg_time
         ).save()
 
     def get_all_documents(self):

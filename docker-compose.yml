@@ -15,14 +15,13 @@ services:
       - ./mongo-data:/data/db
 
   jupyter:
-    image: cschranz/gpu-jupyter:v1.8_cuda-12.5_ubuntu-22.04_python-only
+    build: .
     container_name: mammotab_execution_jupyter
     environment:
       JUPYTER_ENABLE_LAB: "yes"
       RESTARTABLE: "yes"
     env_file:
       - ./.env
-    restart: always
     depends_on:
       - mongo
     volumes:
