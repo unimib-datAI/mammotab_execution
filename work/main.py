@@ -11,6 +11,7 @@ from transformers import AutoModel, AutoTokenizer
 from huggingface_hub import login
 
 HF_TOKEN = os.getenv("HF_TOKEN")
+BATCH_SIZE = int(os.getenv("BATCH_SIZE"))
 model_name = os.getenv("MODEL_NAME")
 tokenizer_name = os.getenv("TOKENIZER_NAME")
 
@@ -23,8 +24,6 @@ try:
         f"Successfully loaded model: {model_name} and tokenizer: {tokenizer_name}")
 except Exception as e:
     raise ValueError(f"Invalid model or tokenizer name: {e}")
-
-batch_size = 8
 
 db = Database()
 
@@ -46,7 +45,7 @@ custom_dataset = CustomDataset(
 llm = LLM(model_name=model_name, tokenizer_name=tokenizer_name)
 
 
-mammotab_dataloader = DataLoader(custom_dataset, batch_size=batch_size)
+mammotab_dataloader = DataLoader(custom_dataset, batch_size=BATCH_SIZE)
 for batch in tqdm(mammotab_dataloader):
     prompts = batch["prompt"]
     responses = batch["response"]
@@ -66,7 +65,7 @@ for batch in tqdm(mammotab_dataloader):
         continue
     for prompt, response, row, column, cell, table, llm_response in zip(prompts, responses, rows, columns, cells, tables, llm_responses):
         db.save_response(model_name=model_name, prompt=prompt, cell=cell, table=table, row=row, column=column,
-                         correct_response=response, model_response=llm_response, correct=response == llm_response, avg_time=time_elapsed/batch_size)
+                         correct_response=response, model_response=llm_response, correct=response == llm_response, avg_time=time_elapsed/BATCH_SIZE)
 
 
 export = Export(db=db)
