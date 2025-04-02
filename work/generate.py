@@ -40,4 +40,8 @@ class LLM:
         responses = []
         for output in decoded_outputs:
             responses.append(self.get_response(generated_output=output))
+            
+        del model_inputs, generated_ids, decoded_outputs
+        torch.cuda.empty_cache()
+        
         return responses

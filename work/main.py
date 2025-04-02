@@ -2,13 +2,16 @@ import os
 import json
 from time import time
 from generate import LLM
-from tqdm import tqdm
+from tqdm_loggable.auto import tqdm
 from database import Database
 from export import Export
 from custom_dataset import CustomDataset
 from torch.utils.data import DataLoader
 from transformers import AutoModel, AutoTokenizer
 from huggingface_hub import login
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 BATCH_SIZE = int(os.getenv("BATCH_SIZE"))

@@ -1,8 +1,11 @@
 from transformers import AutoTokenizer
 from torch.utils.data import Dataset
-from tqdm import tqdm
+from tqdm_loggable.auto import tqdm
 import torch
 import json
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 
 class CustomDataset(Dataset):
