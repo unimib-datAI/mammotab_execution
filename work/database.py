@@ -32,7 +32,7 @@ class Cea(Document):
     row = IntField(required=True)
     column = IntField(required=True)
     correct = BooleanField(required=True)
-    avg_time = FloatField(required=True)
+    avg_time = FloatField(required=True, default=0.0)
 
 class Missings(Document):
     """Optimized database model for tracking failed cells"""
@@ -150,7 +150,7 @@ class Database:
     def get_all_documents(self) -> QuerySet:
         """Optimized query for all documents with projection"""
         return Cea.objects.only(
-            'table', 'row', 'column'  # Only fetch needed fields
+            'table', 'row', 'column', 'correct', 'model', 'avg_time'  # Only fetch needed fields
         ).timeout(False)  # No timeout for large queries
 
     def get_stats_by_model(self, model_name: str) -> Dict[str, float]:

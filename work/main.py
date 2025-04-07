@@ -21,7 +21,7 @@ INITIAL_BATCH_SIZE = int(os.getenv("BATCH_SIZE", 8))  # Default to 8 if not set
 MIN_BATCH_SIZE = 1  # Minimum batch size to try
 model_name = os.getenv("MODEL_NAME")
 tokenizer_name = os.getenv("TOKENIZER_NAME")
-
+'''
 login(token=HF_TOKEN)
 
 try:
@@ -31,7 +31,7 @@ try:
         f"Successfully loaded model: {model_name} and tokenizer: {tokenizer_name}")
 except Exception as e:
     raise ValueError(f"Invalid model or tokenizer name: {e}")
-
+'''
 db = Database()
 
 
@@ -44,13 +44,13 @@ def get_annotated_cells() -> set[str]:
 
     return annotated_cells_set
 
-
+'''
 cell_set_annotated = get_annotated_cells()
 
 custom_dataset = CustomDataset(
     annotated_cells=cell_set_annotated, tokenizer_name=tokenizer_name)
 llm = LLM(model_name=model_name, tokenizer_name=tokenizer_name)
-
+'''
 
 def process_batch(batch, current_batch_size):
     try:
@@ -156,14 +156,14 @@ def process_with_retry(batch_items, initial_batch_size):
     if remaining_items and len(remaining_items.get('prompt', [])) > 0:
         logging.error(f"Failed to process {len(remaining_items['prompt'])} items")
         logging.debug(f"First failed prompt: {remaining_items['prompt'][0]}")
-
+'''
 # Create a single DataLoader with the maximum batch size
 dataloader = DataLoader(custom_dataset, batch_size=INITIAL_BATCH_SIZE)
 
 for batch in tqdm(dataloader):
     process_with_retry(batch, INITIAL_BATCH_SIZE)
 
-
+'''
 export = Export(db=db)
 stats_export = export.compute_stats()
 
