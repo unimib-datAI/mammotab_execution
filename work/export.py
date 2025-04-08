@@ -14,7 +14,6 @@ class Export:
         self.TOTAL_CELLS = 84907
         self.db = db
         self.stats = self.load_stats()
-        # self.cea = self.export_cea_results()
 
     def load_stats(self):
         stats_dict = {}
@@ -291,37 +290,3 @@ class Export:
         if is_correct and stat_value > 0 and table not in counted_tables[stat]:
             model_stats[stat] += 1
             counted_tables[stat].add(table)
-
-    def export_cea_results(self):
-        """
-        Export table, cell, model_response, and correct_response to a CSV file.
-        The file is named CEA_<model_name>.csv where <model_name> is from the database.
-        """
-
-        # Get all documents from the database
-        all_documents = self.db.get_all_documents_full()
-
-        # Create filename using model name from the database
-        filename = f"CEA_{model_name.split('/')[1]}.csv"
-
-        print(f"Exporting CEA results to {filename}...")
-
-        with open(filename, "w", newline="") as csvfile:
-            writer = csv.writer(csvfile)
-
-            writer.writerow(["table", "cell", "model_response", "correct_response"])
-
-            for doc in all_documents:
-                doc_dict = doc.to_mongo().to_dict()
-                table = doc_dict.get("table", "")
-                row = doc_dict.get("row", "")
-                column = doc_dict.get("column", "")
-                model_response = doc_dict.get("model_response", "")
-                correct_response = doc_dict.get("correct_response", "")
-                cell = f"{row}_{column}"
-
-                # Write row to CSV
-                writer.writerow([table, cell, model_response, correct_response])
-
-        print(f"Export complete: {all_documents.count()} records written to {filename}")
-        return filename

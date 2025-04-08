@@ -22,12 +22,12 @@ class Cea(Document):
     meta = {
         "collection": "cea_results",
         "indexes": [
-            "model",  # Frequently filtered by model
-            "table",  # Frequently filtered by table
-            {
-                "fields": ["table", "row", "column"],
-                "unique": True,
-            },  # Compound index for unique cell reference
+            "model",
+            # "table",  # Frequently filtered by table
+            # {
+            #    "fields": ["model", "table", "row", "column"],
+            #    "unique": True,
+            # },  # Compound index for unique cell reference
             "correct",  # For statistics queries
             {"fields": ["table", "correct"]},  # For table-specific accuracy
             {"fields": ["model", "correct"]},  # For model-specific accuracy

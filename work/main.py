@@ -36,7 +36,7 @@ except Exception as e:
 def get_annotated_cells() -> set[str]:
     print("Load Annotated Cells")
     annotated_cells_set = set[str]()
-    annotated_cells = db.get_all_documents()
+    annotated_cells = db.get_all_documents(model_name=model_name)
     for cell in tqdm(annotated_cells):
         annotated_cells_set.add(f"{cell.table}_{cell.row}_{cell.column}")
 
