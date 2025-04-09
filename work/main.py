@@ -72,7 +72,8 @@ def process_batch(batch, current_batch_size):
         logging.debug(f"First prompt: {prompts[0] if len(prompts) > 0 else 'N/A'}")
 
         start = time()
-        llm_responses = llm.generate(prompts)
+        chunk_size = int(os.getenv("CHUNK_SIZE", 64))
+        llm_responses = llm.generate(prompts, chunk_size=chunk_size)
         end = time()
         time_elapsed = end - start
 
