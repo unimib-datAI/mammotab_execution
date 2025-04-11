@@ -1,4 +1,4 @@
-import os
+import os, argparse
 import json
 from time import time
 from generate import LLM
@@ -10,6 +10,9 @@ from torch.utils.data import DataLoader
 from transformers import AutoModel, AutoTokenizer
 from huggingface_hub import login
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -17,11 +20,19 @@ logging.basicConfig(
 
 db = Database()
 
-HF_TOKEN = os.getenv("HF_TOKEN")
-INITIAL_BATCH_SIZE = int(os.getenv("BATCH_SIZE", 8))  # Default to 8 if not set
-MIN_BATCH_SIZE = 1  # Minimum batch size to try
-model_name = os.getenv("MODEL_NAME")
-tokenizer_name = os.getenv("TOKENIZER_NAME")
+parser = argparse.ArgumentParser(description="Run the main script with arguments.")
+parser.add_argument("--model_name", type=str, help="Name of the Hugging Face model")
+parser.add_argument("--batch_size", type=int, help="Batch size for processing")
+parser.add_argument("--hf_token", type=str, help="Hugging Face token")
+parser.add_argument("--input_file", type=str, help="Path to the input file")
+
+args = parser.parse_args()
+
+model_name = args.model_name or os.getenv("MODEL_NAME")
+tokenizer_name = model_name
+HF_TOKEN = args.hf_token or os.getenv("HF_TOKEN")
+INITIAL_BATCH_SIZE = args.batch_size or int(os.getenv("BATCH_SIZE", "8"))
+CHUNK_FILE = args.input_file or os.getenv("CHUNK_FILE", "./mammotab_sample.jsonl")
 
 login(token=HF_TOKEN)
 
@@ -36,7 +47,7 @@ except Exception as e:
 def get_annotated_cells() -> set[str]:
     print("Load Annotated Cells")
     annotated_cells_set = set[str]()
-    annotated_cells = db.get_all_documents()
+    annotated_cells = db.get_all_documents(model_name=model_name)
     for cell in tqdm(annotated_cells):
         annotated_cells_set.add(f"{cell.table}_{cell.row}_{cell.column}")
 
@@ -46,7 +57,9 @@ def get_annotated_cells() -> set[str]:
 cell_set_annotated = get_annotated_cells()
 
 custom_dataset = CustomDataset(
-    annotated_cells=cell_set_annotated, tokenizer_name=tokenizer_name
+    annotated_cells=cell_set_annotated,
+    tokenizer_name=tokenizer_name,
+    file_path=CHUNK_FILE,
 )
 llm = LLM(model_name=model_name, tokenizer_name=tokenizer_name)
 

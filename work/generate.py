@@ -1,8 +1,10 @@
-import re
+import re, os
 import torch
 from typing import List, Optional
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from contextlib import nullcontext
+
+test_locally = os.getenv("TEST_LOCALLY", "False").lower() == "true"
 
 
 class LLM:
@@ -10,11 +12,11 @@ class LLM:
         self,
         model_name: str,
         tokenizer_name: str,
-        device: str = "cuda",
+        device: Optional[str] = None,
         load_in_4bit: bool = False,
         load_in_8bit: bool = False,
     ):
-        self.device = device
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
 
         # Model configuration
@@ -24,7 +26,7 @@ class LLM:
             torch_dtype=self.dtype,
             load_in_4bit=load_in_4bit,
             load_in_8bit=load_in_8bit,
-        )
+        ).to(self.device)
 
         # Tokenizer with optimized settings
         self.tokenizer = AutoTokenizer.from_pretrained(

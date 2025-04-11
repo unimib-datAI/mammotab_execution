@@ -1,4 +1,4 @@
-from database import Cea, Database
+from database import Database
 import math
 import torch
 import json
@@ -7,6 +7,7 @@ import platform
 import os
 
 model_name = os.getenv("MODEL_NAME")
+test_locally = os.getenv("TEST_LOCALLY", "False").lower() == "true"
 
 
 class Export:
@@ -18,7 +19,9 @@ class Export:
 
     def load_stats(self):
         stats_dict = {}
-        with open("./general_stats_per_table.json", "r") as file:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(current_dir, "general_stats_per_table.json")
+        with open(file_path, "r") as file:
             for data in json.load(file):
                 stats_dict[data["table"]] = data["stats"]
 
@@ -265,7 +268,9 @@ class Export:
             "system": platform.system(),
             "machine": platform.machine(),
             "processor": platform.processor(),
-            "cuda": torch.cuda.get_device_name(),
+            "cuda": torch.cuda.get_device_name()
+            if torch.cuda.is_available() and not test_locally
+            else "CPU",
             "model_name": model_name,
             "ne_cells": self.TOTAL_CELLS,
             "total_time": self.truncate(total_time, 3),
