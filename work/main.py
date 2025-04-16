@@ -13,6 +13,7 @@ import logging
 from dotenv import load_dotenv
 
 load_dotenv()
+MIN_BATCH_SIZE = 1
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
