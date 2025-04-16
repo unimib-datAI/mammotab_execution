@@ -33,12 +33,12 @@ for chunk in chunks/${CHUNK_PREFIX}*.jsonl; do
 #SBATCH --output=job_logs/out_%x_%j.log # Standard output and error log, with job name and id
 #SBATCH --error=job_logs/error_%x_%j.log
 ### Definitions
-export BASEDIR="/home/m.cremaschi/test"
+export BASEDIR="/home/m.cremaschi/mammotab_execution"
 export SHRDIR="/scratch_share/datai/`whoami`"
 export LOCDIR="/scratch_local"
 export TMPDIR=$SHRDIR/$BASEDIR/tmp_$SLURM_JOB_NAME_$SLURM_JOB_ID
 
-cd /home/m.cremaschi/test/
+cd /home/m.cremaschi/mammotab_execution/
 
 ### Header
 pwd; hostname; date
