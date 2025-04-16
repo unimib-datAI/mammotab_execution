@@ -37,7 +37,7 @@ mkdir -p job_logs
 export BASEDIR="/home/m.cremaschi/mammotab_execution"
 export SHRDIR="/scratch_share/datai/m.cremaschi"
 export LOCDIR="/scratch_local"
-export TMPDIR=$SHRDIR/$BASEDIR/tmp_${SLURM_JOB_NAME}_${SLURM_JOB_ID}
+export TMPDIR=\$SHRDIR/\$BASEDIR/tmp_\${SLURM_JOB_NAME}_\${SLURM_JOB_ID}
 
 cd /home/m.cremaschi/mammotab_execution/
 
