@@ -22,16 +22,41 @@ for chunk in chunks/${CHUNK_PREFIX}*.jsonl; do
     # Generate job file
     cat << EOF > "$JOB_FILE"
 #!/bin/bash
+#SBATCH --account=m.cremaschi
+#SBATCH --partition=only-one-gpu
 #SBATCH --job-name=${chunk%.jsonl}
 #SBATCH --export=MODEL_NAME="$MODEL_NAME",BATCH_SIZE="$BATCH_SIZE",CHUNK_FILE="$chunk"
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=16G
+#SBATCH --gres=gpu:1
+#SBATCH --output=job_logs/out_%x_%j.log # Standard output and error log, with job name and id
+#SBATCH --error=job_logs/error_%x_%j.log
+### Definitions
+export BASEDIR="/home/m.cremaschi/test"
+export SHRDIR="/scratch_share/datai/`whoami`"
+export LOCDIR="/scratch_local"
+export TMPDIR=$SHRDIR/$BASEDIR/tmp_$SLURM_JOB_NAME_$SLURM_JOB_ID
 
-srun python work/generate.py \
+cd /home/m.cremaschi/test/
+
+### Header
+pwd; hostname; date
+
+module purge
+module load amd/slurm
+
+source /home/m.cremaschi/.bashrc
+conda activate python3.11
+
+torchrun --nproc-per-node=1 --standalone python work/generate.py \
     --model_name "\$MODEL_NAME" \
     --batch_size "\$BATCH_SIZE" \
     --hf_token "\$HF_TOKEN" \
     --input_file "\$CHUNK_FILE"
+
 EOF
 
     # Submit job
-    #sbatch "$JOB_FILE"
+    # sbatch "$JOB_FILE"
 done
