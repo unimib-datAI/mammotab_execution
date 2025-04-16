@@ -5,6 +5,9 @@ import json
 import csv
 import platform
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 model_name = os.getenv("MODEL_NAME")
 test_locally = os.getenv("TEST_LOCALLY", "False").lower() == "true"
@@ -35,17 +38,17 @@ class Export:
         return math.trunc(stepper * number) / stepper
 
     def compute_stats(self):
-        all_documents: list[Cea] = self.db.get_all_documents(model_name=model_name)
+        all_documents = self.db.get_all_documents(model_name=model_name)
 
         # First, calculate accuracy per table
         table_statistics = {}
         for document in all_documents:
-            table = document.table
+            table = document["table"]
             if table not in table_statistics:
                 table_statistics[table] = {"total": 0, "correct": 0}
 
             table_statistics[table]["total"] += 1
-            if document.correct:
+            if document["correct"]:
                 table_statistics[table]["correct"] += 1
 
         # Calculate accuracy per table and identify tables above threshold
@@ -158,15 +161,15 @@ class Export:
         acro_typo_alias = {}
 
         for document in all_documents:
-            table = document.table
-            row = document.row
-            column = document.column
+            table = document["table"]
+            row = document["row"]
+            column = document["column"]
             if f"{table}_{row}_{column}" not in cell_set:
                 total_computed += 1
-                if document.avg_time is not None:
-                    total_time += document.avg_time
+                if document["avg_time"] is not None:
+                    total_time += document["avg_time"]
                     cell_set.add(f"{table}_{row}_{column}")
-                    if document.correct:
+                    if document["correct"]:
                         total_correct += 1
 
                     # Process cell-level stats (always)
@@ -179,7 +182,7 @@ class Export:
                                 except ValueError:
                                     continue
 
-                            if document.correct and stat_value > 0:
+                            if document["correct"] and stat_value > 0:
                                 model_stats[stat] += 1
 
                     # Process table-level stats (only for tables above threshold)
@@ -205,7 +208,7 @@ class Export:
                                     if tag_value in size_categories[stat]:
                                         if (
                                             table not in counted_tables[tag_value]
-                                            and document.correct
+                                            and document["correct"]
                                         ):
                                             model_stats[tag_value] += 1
                                             counted_tables[tag_value].add(table)
@@ -225,7 +228,7 @@ class Export:
                                             "typos_added",
                                             "alias_added",
                                         ]
-                                        and document.correct
+                                        and document["correct"]
                                     ):
                                         if table not in acro_typo_alias:
                                             acro_typo_alias[table] = {}
@@ -238,7 +241,7 @@ class Export:
                                             counted_tables[stat].add(table)
                                     else:
                                         if (
-                                            document.correct
+                                            document["correct"]
                                             and stat_value > 0
                                             and table not in counted_tables[stat]
                                         ):
@@ -295,3 +298,11 @@ class Export:
         if is_correct and stat_value > 0 and table not in counted_tables[stat]:
             model_stats[stat] += 1
             counted_tables[stat].add(table)
+
+
+db = Database(model_name=model_name)
+export = Export(db=db)
+stats_export = export.compute_stats()
+
+with open(f"./{model_name.split('/')[-1]}.json", "w", encoding="utf-8") as f:
+    json.dump(stats_export, f)

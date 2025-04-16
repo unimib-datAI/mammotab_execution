@@ -4,7 +4,6 @@ from time import time
 from generate import LLM
 from tqdm_loggable.auto import tqdm
 from database import Database
-from export import Export
 from custom_dataset import CustomDataset
 from torch.utils.data import DataLoader
 from transformers import AutoModel, AutoTokenizer
@@ -19,7 +18,6 @@ logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-db = Database()
 
 parser = argparse.ArgumentParser(description="Run the main script with arguments.")
 parser.add_argument("--model_name", type=str, help="Name of the Hugging Face model")
@@ -34,6 +32,7 @@ tokenizer_name = model_name
 HF_TOKEN = args.hf_token or os.getenv("HF_TOKEN")
 INITIAL_BATCH_SIZE = args.batch_size or int(os.getenv("BATCH_SIZE", "8"))
 CHUNK_FILE = args.input_file or os.getenv("CHUNK_FILE", "./mammotab_sample.jsonl")
+db = Database(model_name=model_name)
 
 login(token=HF_TOKEN)
 
@@ -45,20 +44,7 @@ except Exception as e:
     raise ValueError(f"Invalid model or tokenizer name: {e}")
 
 
-def get_annotated_cells() -> set[str]:
-    print("Load Annotated Cells")
-    annotated_cells_set = set[str]()
-    annotated_cells = db.get_all_documents(model_name=model_name)
-    for cell in tqdm(annotated_cells):
-        annotated_cells_set.add(f"{cell.table}_{cell.row}_{cell.column}")
-
-    return annotated_cells_set
-
-
-cell_set_annotated = get_annotated_cells()
-
 custom_dataset = CustomDataset(
-    annotated_cells=cell_set_annotated,
     tokenizer_name=tokenizer_name,
     file_path=CHUNK_FILE,
 )
@@ -179,8 +165,8 @@ for batch in tqdm(dataloader):
     process_with_retry(batch, INITIAL_BATCH_SIZE)
 
 
-export = Export(db=db)
-stats_export = export.compute_stats()
+# export = Export(db=db)
+# stats_export = export.compute_stats()
 
-with open(f"./{model_name.split('/')[-1]}.json", "w", encoding="utf-8") as f:
-    json.dump(stats_export, f)
+# with open(f"./{model_name.split('/')[-1]}.json", "w", encoding="utf-8") as f:
+#    json.dump(stats_export, f)

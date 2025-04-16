@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 class CustomDataset(Dataset):
     def __init__(
         self,
-        annotated_cells: set[str],
+        # annotated_cells: set[str],
         tokenizer_name: str,
         file_path: str = "./mammotab_sample.jsonl",
         max_workers: int = 4,
     ):
         super().__init__()
         self.file_path = file_path
-        self.annotated_cells = annotated_cells
+        # self.annotated_cells = annotated_cells
         self.tokenizer = AutoTokenizer.from_pretrained(
             tokenizer_name, padding_side="left", use_fast=True
         )
@@ -34,11 +34,6 @@ class CustomDataset(Dataset):
             table = current_data["table"]
             row = current_data["row"]
             column = current_data["column"]
-
-            # Skip if already annotated
-            if f"{table}_{row}_{column}" in self.annotated_cells:
-                logger.debug(f"Skipping annotated cell: {table}_{row}_{column}")
-                return None
 
             # Check token length
             input_ids = self.tokenizer(
