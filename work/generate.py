@@ -1,10 +1,13 @@
-import re, os
+import re
+import os
 import torch
 from typing import List, Optional
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from contextlib import nullcontext
 
 test_locally = os.getenv("TEST_LOCALLY", "False").lower() == "true"
+shared_cache = "/scratch_share/datai/`whoami`"
+cache_dir = shared_cache if os.path.exists(shared_cache) else None
 
 
 class LLM:
@@ -16,7 +19,8 @@ class LLM:
         load_in_4bit: bool = False,
         load_in_8bit: bool = False,
     ):
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device or (
+            "cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
 
         # Model configuration
@@ -26,6 +30,7 @@ class LLM:
             torch_dtype=self.dtype,
             load_in_4bit=load_in_4bit,
             load_in_8bit=load_in_8bit,
+            cache_dir=cache_dir
         ).to(self.device)
 
         # Tokenizer with optimized settings
@@ -34,6 +39,7 @@ class LLM:
             padding_side="left",
             use_fast=True,  # Enable Rust-based tokenizer
             truncation_side="left",
+            cache_dir=cache_dir
         )
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
@@ -80,7 +86,7 @@ class LLM:
         try:
             # Process in chunks to manage memory
             for i in range(0, len(texts), chunk_size):
-                chunk_texts = texts[i : i + chunk_size]
+                chunk_texts = texts[i: i + chunk_size]
 
                 # Tokenize chunk
                 model_inputs = self.tokenize(chunk_texts)
@@ -96,7 +102,8 @@ class LLM:
                     skip_special_tokens=True,
                     clean_up_tokenization_spaces=True,
                 )
-                responses.extend(self.get_response(output) for output in decoded)
+                responses.extend(self.get_response(output)
+                                 for output in decoded)
 
             return responses
 
