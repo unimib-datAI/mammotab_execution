@@ -9,6 +9,7 @@ TOTAL_ITEMS=$(wc -l < "$DATASET_FILE")
 CHUNK_PREFIX="mammotab_chunk_"
 split -l "$CHUNK_SIZE" -a 4 "$DATASET_FILE" "$CHUNK_PREFIX"
 
+mkdir -p chunks
 # Rename chunks to include .jsonl suffix
 for chunk in ${CHUNK_PREFIX}*; do
     mv "$chunk" "chunks/$chunk.jsonl"
