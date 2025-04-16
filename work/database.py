@@ -20,7 +20,7 @@ class Database:
     def save_missings(self, cell: str, table: str, row: int, column: int) -> None:
         """Save a single missing cell record to filesystem"""
         try:
-            path = self._get_missing_path(table, row, column)
+            path = Path(self.saving_path)
             path.parent.mkdir(parents=True, exist_ok=True)
             with open(path, "w") as f:
                 json.dump(

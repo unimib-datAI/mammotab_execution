@@ -7,7 +7,10 @@ import platform
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+dotenv_path = os.path.join(root_dir, ".env")
+
+load_dotenv(dotenv_path=dotenv_path)
 
 model_name = os.getenv("MODEL_NAME")
 test_locally = os.getenv("TEST_LOCALLY", "False").lower() == "true"
