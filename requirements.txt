@@ -1,6 +1,9 @@
-transformers
-mongoengine
-torch
-tqdm-loggable
-accelerate>=0.26.0
-huggingface_hub
+openai>=1.0.0
+tqdm-loggable>=0.1.0
+mongoengine>=0.24.2
+pymongo>=4.0.0
+torch>=2.0.0
+transformers>=4.30.0
+huggingface-hub>=0.16.0
+python-dotenv>=0.21.0
+tqdm>=4.65.0

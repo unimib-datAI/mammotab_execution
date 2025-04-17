@@ -2,7 +2,6 @@ from database import Cea, Database
 import math
 import torch
 import json
-import csv
 import platform
 import os
 
@@ -32,7 +31,8 @@ class Export:
         return math.trunc(stepper * number) / stepper
 
     def compute_stats(self):
-        all_documents: list[Cea] = self.db.get_all_documents(model_name=model_name)
+        all_documents: list[Cea] = self.db.get_all_documents(
+            model_name=model_name)
 
         # First, calculate accuracy per table
         table_statistics = {}
@@ -205,7 +205,8 @@ class Export:
                                             and document.correct
                                         ):
                                             model_stats[tag_value] += 1
-                                            counted_tables[tag_value].add(table)
+                                            counted_tables[tag_value].add(
+                                                table)
                                 # Handle other table-level stats
                                 else:
                                     stat_value = self.stats[table][stat]

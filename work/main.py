@@ -7,8 +7,6 @@ from database import Database
 from export import Export
 from custom_dataset import CustomDataset
 from torch.utils.data import DataLoader
-from transformers import AutoModel, AutoTokenizer
-from huggingface_hub import login
 import logging
 
 logging.basicConfig(
@@ -17,26 +15,17 @@ logging.basicConfig(
 
 db = Database()
 
-HF_TOKEN = os.getenv("HF_TOKEN")
-INITIAL_BATCH_SIZE = int(os.getenv("BATCH_SIZE", 8))  # Default to 8 if not set
-MIN_BATCH_SIZE = 1  # Minimum batch size to try
-model_name = os.getenv("MODEL_NAME")
-tokenizer_name = os.getenv("TOKENIZER_NAME")
-
-login(token=HF_TOKEN)
-
-try:
-    AutoModel.from_pretrained(model_name)
-    AutoTokenizer.from_pretrained(tokenizer_name)
-    print(f"Successfully loaded model: {model_name} and tokenizer: {tokenizer_name}")
-except Exception as e:
-    raise ValueError(f"Invalid model or tokenizer name: {e}")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
+MODEL_NAME = os.getenv("OPENAI_MODEL_NAME")
+INITIAL_BATCH_SIZE = int(os.getenv("BATCH_SIZE", 8))
+MIN_BATCH_SIZE = 1
 
 
 def get_annotated_cells() -> set[str]:
     print("Load Annotated Cells")
     annotated_cells_set = set[str]()
-    annotated_cells = db.get_all_documents(model_name=model_name)
+    annotated_cells = db.get_all_documents(model_name=MODEL_NAME)
     for cell in tqdm(annotated_cells):
         annotated_cells_set.add(f"{cell.table}_{cell.row}_{cell.column}")
 
@@ -46,15 +35,16 @@ def get_annotated_cells() -> set[str]:
 cell_set_annotated = get_annotated_cells()
 
 custom_dataset = CustomDataset(
-    annotated_cells=cell_set_annotated, tokenizer_name=tokenizer_name
+    annotated_cells=cell_set_annotated
 )
-llm = LLM(model_name=model_name, tokenizer_name=tokenizer_name)
+llm = LLM(model_name=MODEL_NAME, api_key=OPENAI_API_KEY,
+          base_url=OPENAI_BASE_URL)
 
 
 def process_batch(batch, current_batch_size):
     try:
-        # First validate the batch structure
-        required_keys = ["prompt", "response", "row", "column", "cell", "table"]
+        required_keys = ["prompt", "response",
+                         "row", "column", "cell", "table"]
         for key in required_keys:
             if key not in batch:
                 raise ValueError(f"Missing required key in batch: {key}")
@@ -69,10 +59,11 @@ def process_batch(batch, current_batch_size):
         tables = batch["table"]
 
         logging.info(f"Processing batch of size {current_batch_size}")
-        logging.debug(f"First prompt: {prompts[0] if len(prompts) > 0 else 'N/A'}")
+        logging.debug(
+            f"First prompt: {prompts[0] if len(prompts) > 0 else 'N/A'}")
 
         start = time()
-        llm_responses = llm.generate(prompts)
+        llm_responses, error_flags = llm.generate(prompts)
         end = time()
         time_elapsed = end - start
 
@@ -85,7 +76,7 @@ def process_batch(batch, current_batch_size):
         # If successful, save results
         for i in range(len(prompts)):
             db.save_response(
-                model=model_name,
+                model=MODEL_NAME,
                 prompt=prompts[i],
                 cell=cells[i],
                 table=tables[i],
@@ -95,11 +86,13 @@ def process_batch(batch, current_batch_size):
                 model_response=llm_responses[i],
                 correct=responses[i] == llm_responses[i],
                 avg_time=time_elapsed / current_batch_size,
+                error=error_flags[i]
             )
         return True
 
     except Exception as e:
-        logging.error(f"Batch processing failed with error: {str(e)}", exc_info=True)
+        logging.error(
+            f"Batch processing failed with error: {str(e)}", exc_info=True)
         # Save the failed items as missing
         for i in range(len(batch.get("prompt", []))):
             try:
@@ -153,11 +146,11 @@ def process_with_retry(batch_items, initial_batch_size):
             break
 
     if remaining_items and len(remaining_items.get("prompt", [])) > 0:
-        logging.error(f"Failed to process {len(remaining_items['prompt'])} items")
+        logging.error(
+            f"Failed to process {len(remaining_items['prompt'])} items")
         logging.debug(f"First failed prompt: {remaining_items['prompt'][0]}")
 
 
-# Create a single DataLoader with the maximum batch size
 dataloader = DataLoader(custom_dataset, batch_size=INITIAL_BATCH_SIZE)
 
 for batch in tqdm(dataloader):
@@ -167,5 +160,5 @@ for batch in tqdm(dataloader):
 export = Export(db=db)
 stats_export = export.compute_stats()
 
-with open(f"./{model_name.split('/')[-1]}.json", "w", encoding="utf-8") as f:
+with open(f"./{MODEL_NAME.replace('/', '_')}.json", "w", encoding="utf-8") as f:
     json.dump(stats_export, f)
