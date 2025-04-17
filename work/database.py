@@ -166,6 +166,7 @@ class Database:
                 "correct",
                 "model",
                 "avg_time",
+                "error"
             )
             .timeout(False)
         )
@@ -182,6 +183,7 @@ class Database:
             "cell",
             "model_response",
             "correct_response",
+            "error"
         ).timeout(False)  # No timeout for large queries
 
     def get_stats_by_model(self, model_name: str) -> Dict[str, float]:
@@ -206,6 +208,14 @@ class Database:
                 "total": result[0]["total"],
             }
         return {"accuracy": 0, "avg_time": 0, "total": 0}
+
+    def count_error_documents(self) -> int:
+        """Count how many documents have error=True in the CEA collection"""
+        try:
+            return Cea.objects(error=True).count()
+        except Exception as e:
+            logger.error(f"Failed to count error documents: {e}")
+            return 0
 
     def get_table_stats(self, table_name: str) -> Dict[str, float]:
         """Get statistics for a specific table"""

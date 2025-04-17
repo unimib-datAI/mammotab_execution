@@ -5,7 +5,7 @@ import json
 import platform
 import os
 
-model_name = os.getenv("MODEL_NAME")
+model_name = os.getenv("OPENAI_MODEL_NAME")
 
 
 class Export:
@@ -265,7 +265,7 @@ class Export:
             "system": platform.system(),
             "machine": platform.machine(),
             "processor": platform.processor(),
-            "cuda": torch.cuda.get_device_name(),
+            "cuda": "OpenAI API",
             "model_name": model_name,
             "ne_cells": self.TOTAL_CELLS,
             "total_time": self.truncate(total_time, 3),
@@ -273,6 +273,7 @@ class Export:
             "total_correct": total_correct,
             "stats": model_stats,
             "final_stats": final_stats,
+            "errors": self.db.count_error_documents()
         }
 
     def _update_table_level_stat(
