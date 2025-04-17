@@ -30,7 +30,9 @@ args = parser.parse_args()
 model_name = args.model_name or os.getenv("MODEL_NAME")
 tokenizer_name = model_name
 HF_TOKEN = args.hf_token or os.getenv("HF_TOKEN")
-INITIAL_BATCH_SIZE = args.batch_size or int(os.getenv("BATCH_SIZE", "8"))
+INITIAL_BATCH_SIZE = (
+    int(args.batch_size) if args.batch_size else int(os.getenv("BATCH_SIZE", "8"))
+)
 CHUNK_FILE = args.input_file or os.getenv("CHUNK_FILE", "./mammotab_sample.jsonl")
 db = Database(model_name=model_name)
 

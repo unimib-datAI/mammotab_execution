@@ -22,7 +22,6 @@ for chunk in chunks/${CHUNK_PREFIX}*.jsonl; do
     # Generate job file
     cat << EOF > "$JOB_FILE"
 #!/bin/bash
-mkdir -p job_logs
 #SBATCH --account=m.cremaschi
 #SBATCH --partition=only-one-gpu
 #SBATCH --job-name=${chunk%.jsonl}
