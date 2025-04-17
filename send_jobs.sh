@@ -12,13 +12,14 @@ if [[ ! -d "$JOB_DIR" ]]; then
   exit 1
 fi
 
-# --- Get list of job files ---
-# Find all .slurm files, excluding any already listed in the log file
-find "$JOB_DIR" -maxdepth 1 -name '*.slurm' -print0 | while IFS= read -r -d $'\0' job_file; do
-  if ! grep -Fxq "$job_file" "$SUBMITTED_LOG" &>/dev/null; then
+PENDING_JOBS=() 
+while IFS= read -r -d $'\0' job_file; do
+  if ! grep -Fxq "$job_file" "$SUBMITTED_LOG" 2>/dev/null; then
     PENDING_JOBS+=("$job_file")
   fi
-done
+done < <(find "$JOB_DIR" -maxdepth 1 -name '*.slurm' -print0)
+
+touch "$SUBMITTED_LOG"
 
 if [[ ${#PENDING_JOBS[@]} -eq 0 ]]; then
   echo "No pending .slurm files found in '$JOB_DIR' that aren't already logged in '$SUBMITTED_LOG'."
