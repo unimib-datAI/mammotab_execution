@@ -29,10 +29,3 @@ services:
     volumes:
       - ./work:/home/jovyan/work
       - ./my-data:/data/my-data
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
