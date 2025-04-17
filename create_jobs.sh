@@ -57,6 +57,4 @@ torchrun --nproc-per-node=1 --standalone work/main.py \
 
 EOF
 
-    # Submit job
-    sbatch "$JOB_FILE"
 done
