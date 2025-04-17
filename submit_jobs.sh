@@ -29,10 +29,10 @@ mkdir -p job_logs
 #SBATCH --export=MODEL_NAME="$MODEL_NAME",BATCH_SIZE="$BATCH_SIZE",CHUNK_FILE="$chunk"
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=16G
+#SBATCH --mem=64G
 #SBATCH --gres=gpu:1
-#SBATCH --output=job_logs/out_%x_%j.log # Standard output and error log, with job name and id
-#SBATCH --error=job_logs/error_%x_%j.log
+#SBATCH --output=/home/m.cremaschi/mammotab_execution/job_logs/out_%x_%j.log 
+#SBATCH --error=/home/m.cremaschi/mammotab_execution/job_logs/error_%x_%j.log
 ### Definitions
 export BASEDIR="/home/m.cremaschi/mammotab_execution"
 export SHRDIR="/scratch_share/datai/m.cremaschi"
