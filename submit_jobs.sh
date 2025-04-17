@@ -50,7 +50,7 @@ module load amd/slurm
 source /home/m.cremaschi/.bashrc
 conda activate python3.11
 
-torchrun --nproc-per-node=1 --standalone work/generate.py \
+torchrun --nproc-per-node=1 --standalone work/main.py \
     --model_name "\$MODEL_NAME" \
     --batch_size "\$BATCH_SIZE" \
     --hf_token "\$HF_TOKEN" \

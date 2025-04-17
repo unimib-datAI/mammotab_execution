@@ -21,7 +21,7 @@ logging.basicConfig(
 
 parser = argparse.ArgumentParser(description="Run the main script with arguments.")
 parser.add_argument("--model_name", type=str, help="Name of the Hugging Face model")
-parser.add_argument("--batch_size", type=int, help="Batch size for processing")
+parser.add_argument("--batch_size", type=str, help="Batch size for processing")
 parser.add_argument("--hf_token", type=str, help="Hugging Face token")
 parser.add_argument("--input_file", type=str, help="Path to the input file")
 
