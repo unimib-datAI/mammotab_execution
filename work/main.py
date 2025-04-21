@@ -39,7 +39,7 @@ db = Database(model_name=model_name)
 login(token=HF_TOKEN)
 
 try:
-    AutoModel.from_pretrained(model_name)
+    AutoModel.from_pretrained(model_name, trust_remote_code=True)
     AutoTokenizer.from_pretrained(tokenizer_name)
     print(f"Successfully loaded model: {model_name} and tokenizer: {tokenizer_name}")
 except Exception as e:
