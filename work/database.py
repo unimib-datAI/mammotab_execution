@@ -23,11 +23,6 @@ class Cea(Document):
         "collection": "cea_results",
         "indexes": [
             "model",
-            # "table",  # Frequently filtered by table
-            # {
-            #    "fields": ["model", "table", "row", "column"],
-            #    "unique": True,
-            # },  # Compound index for unique cell reference
             "correct",  # For statistics queries
             {"fields": ["table", "correct"]},  # For table-specific accuracy
             {"fields": ["model", "correct"]},  # For model-specific accuracy
@@ -55,7 +50,8 @@ class Missings(Document):
     meta = {
         "collection": "missing_cells",
         "indexes": [
-            {"fields": ["table", "row", "column"], "unique": True}  # Prevent duplicates
+            {"fields": ["table", "row", "column"],
+                "unique": True}  # Prevent duplicates
         ],
         "write_concern": WriteConcern(w=1, j=False),
     }
@@ -99,7 +95,8 @@ class Database:
         try:
             Missings(cell=cell, table=table, row=row, column=column).save()
         except Exception as e:
-            logger.warning(f"Failed to save missing cell {table}_{row}_{column}: {e}")
+            logger.warning(
+                f"Failed to save missing cell {table}_{row}_{column}: {e}")
 
     def bulk_save_missings(self, records: List[Dict[str, Any]]) -> int:
         """Bulk save missing cells with optimized performance"""
