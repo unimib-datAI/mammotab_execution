@@ -32,5 +32,5 @@ echo "MODEL_NAME: $MODEL_NAME"
 echo "HF_TOKEN: $HF_TOKEN"
 
 torchrun --nproc-per-node=1 --standalone work/test-model.py \
-    --model_name "\$MODEL_NAME" \
-    --hf_token "\$HF_TOKEN"
+    --model_name "$MODEL_NAME" \
+    --hf_token "$HF_TOKEN"
