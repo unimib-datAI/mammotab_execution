@@ -26,7 +26,7 @@ module load amd/slurm
 source /home/m.cremaschi/.bashrc
 conda activate python3.11
 
-source /home/m.cremaschi/mammotab_execution/.env
+set -a && source .env && set +a
 
 echo "MODEL_NAME: $MODEL_NAME"
 echo "HF_TOKEN: $HF_TOKEN"
