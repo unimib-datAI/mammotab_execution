@@ -2,7 +2,6 @@ from database import Database
 import math
 import torch
 import json
-import csv
 import platform
 import os
 from dotenv import load_dotenv
@@ -214,7 +213,8 @@ class Export:
                                             and document["correct"]
                                         ):
                                             model_stats[tag_value] += 1
-                                            counted_tables[tag_value].add(table)
+                                            counted_tables[tag_value].add(
+                                                table)
                                 # Handle other table-level stats
                                 else:
                                     stat_value = self.stats[table][stat]

@@ -27,70 +27,83 @@ class Database:
                     {"cell": cell, "table": table, "row": row, "column": column}, f
                 )
         except Exception as e:
-            logger.warning(f"Failed to save missing cell {table}_{row}_{column}: {e}")
+            logger.warning(
+                f"Failed to save missing cell {table}_{row}_{column}: {e}")
 
-    def save_response(self, **kwargs) -> None:
+    def save_response(self, chunk_file: str, **kwargs) -> None:
         """Save a single inference result to filesystem"""
         try:
-            file = self.saving_path
-            if not os.path.exists(file):
-                open(file, "w").close()
-            with open(file, "a") as f:
-                f.write(json.dumps(kwargs) + "\n")
+            # Create directory if it doesn't exist (safer than just file creation)
+            output_dir = Path("chunks_results")
+            output_dir.mkdir(exist_ok=True)
+
+            current_file = chunk_file.split("/")[1]
+            file_path = output_dir / current_file
+
+            with open(file_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(kwargs, ensure_ascii=False) + "\n")
+
+        except IOError as e:
+            logger.error(f"Failed to save response to {file_path}: {e}")
+        except json.JSONEncodeError as e:
+            logger.error(f"Failed to serialize data to JSON: {e}")
         except Exception as e:
-            logger.error(f"Failed to save response: {e}")
+            logger.error(f"Unexpected error saving response: {e}")
 
     def get_all_documents(self, model_name: str) -> List[Dict]:
         """Get all documents for a specific model from filesystem"""
         results = []
-        file_path = Path(self.saving_path)
+        chunk_resilts_path = Path("chunks_results")
+        for jsonl_file in chunk_resilts_path.glob("*.jsonl"):
 
-        if not file_path.exists():
-            logger.warning(
-                f"Result file not found for model {model_name} at {file_path}"
-            )
-            return results
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        line = line.strip()
-                        if not line:
-                            continue
+            if not jsonl_file.exists():
+                logger.warning(
+                    f"Result file not found for model {model_name} at {jsonl_file.name}"
+                )
+                return results
+            try:
+                with jsonl_file.open('r', encoding='utf-8') as f:
+                    for line in f:
+                        try:
+                            line = line.strip()
+                            if not line:
+                                continue
 
-                        data = json.loads(line)
-                        results.append(
-                            {
-                                "table": data.get("table"),
-                                "row": data.get("row"),
-                                "column": data.get("column"),
-                                "correct": data.get("correct"),
-                                "model": data.get(
-                                    "model"
-                                ),  # Keep model name for potential filtering
-                                "avg_time": data.get(
-                                    "avg_time", 0.0
-                                ),  # Default avg_time if missing
-                            }
-                        )
-                    except json.JSONDecodeError as json_err:
-                        logger.warning(
-                            f"Skipping invalid JSON line in {file_path}: {json_err}. Line: '{line[:100]}...'"
-                        )
-                    except KeyError as key_err:
-                        logger.warning(
-                            f"Skipping line with missing key {key_err} in {file_path}. Line: '{line[:100]}...'"
-                        )
-                    except (
-                        Exception
-                    ) as line_err:  # Catch other potential errors per line
-                        logger.warning(
-                            f"Error processing line in {file_path}: {line_err}. Line: '{line[:100]}...'"
-                        )
+                            data = json.loads(line)
+                            results.append(
+                                {
+                                    "table": data.get("table"),
+                                    "row": data.get("row"),
+                                    "column": data.get("column"),
+                                    "correct": data.get("correct"),
+                                    "model": data.get(
+                                        "model"
+                                    ),  # Keep model name for potential filtering
+                                    "avg_time": data.get(
+                                        "avg_time", 0.0
+                                    ),  # Default avg_time if missing
+                                }
+                            )
+                        except json.JSONDecodeError as json_err:
+                            logger.warning(
+                                f"Skipping invalid JSON line in {jsonl_file.name}: {json_err}. Line: '{line[:100]}...'"
+                            )
+                        except KeyError as key_err:
+                            logger.warning(
+                                f"Skipping line with missing key {key_err} in {jsonl_file.name}. Line: '{line[:100]}...'"
+                            )
+                        except (
+                            Exception
+                        ) as line_err:  # Catch other potential errors per line
+                            logger.warning(
+                                f"Error processing line in {jsonl_file.name}: {line_err}. Line: '{line[:100]}...'"
+                            )
 
-        except Exception as e:
-            logger.error(f"Failed to read or process file {file_path}: {e}")
+            except Exception as e:
+                logger.error(
+                    f"Failed to read or process file {jsonl_file.name}: {e}")
 
+        print("PROCESSED:", len(results))
         return results
 
     def get_stats_by_model(self, model_name: str) -> Dict[str, float]:
