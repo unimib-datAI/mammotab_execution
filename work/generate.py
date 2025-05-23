@@ -97,7 +97,9 @@ class LLM:
             pad_to_multiple_of=4,
             padding=True,
             truncation=True,
-            max_length=self.tokenizer.model_max_length,
+            max_length=self.tokenizer.model_max_length
+            if self.tokenizer.model_max_length < 32768
+            else 32768,
             return_token_type_ids=False,
         ).to(self.device)
 
