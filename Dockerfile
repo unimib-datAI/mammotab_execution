@@ -7,6 +7,7 @@ COPY ./work /home/jovyan/work
 COPY ./requirements.txt /home/jovyan/work/requirements.txt
 
 # Install Python packages
+RUN export RUSTFLAGS="-A invalid_reference_casting"
 RUN pip install --no-cache-dir -r requirements.txt
 
 CMD ["python", "main.py"]

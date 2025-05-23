@@ -167,7 +167,8 @@ class Database:
                 "column",
                 "correct",
                 "model",
-                "avg_time",  # Only fetch needed fields
+                "avg_time",
+                "correct_response",  # Only fetch needed fields
             )
             .timeout(False)
         )  # No timeout for large queries

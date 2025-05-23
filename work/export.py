@@ -153,7 +153,8 @@ class Export:
         }
 
         acro_typo_alias = {}
-
+        nils = 0
+        total_nils = 0
         for document in all_documents:
             table = document.table
             row = document.row
@@ -178,6 +179,14 @@ class Export:
 
                             if document.correct and stat_value > 0:
                                 model_stats[stat] += 1
+
+                            if (
+                                document.correct_response
+                                == "<NIL [DESCRIPTION] Not in list [TYPE] None>"
+                            ):
+                                total_nils += 1
+                                if document.correct:
+                                    nils += 1
 
                     # Process table-level stats (only for tables above threshold)
                     if table in tables_above_threshold:
@@ -259,6 +268,9 @@ class Export:
         model_stats = {
             mapping_dict.get(key, key): value for key, value in model_stats.items()
         }
+
+        model_stats["nils"] = nils
+        final_stats["nils"] = f"{math.trunc(nils / total_nils * 100 * 10) / 10}%"
 
         return {
             "system": platform.system(),

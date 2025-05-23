@@ -1,15 +1,16 @@
-import os
 import json
+import logging
+import os
 from time import time
-from generate import LLM
-from tqdm_loggable.auto import tqdm
+
+from custom_dataset import CustomDataset
 from database import Database
 from export import Export
-from custom_dataset import CustomDataset
-from torch.utils.data import DataLoader
-from transformers import AutoModel, AutoTokenizer
+from generate import LLM
 from huggingface_hub import login
-import logging
+from torch.utils.data import DataLoader
+from tqdm_loggable.auto import tqdm
+from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -23,11 +24,16 @@ MIN_BATCH_SIZE = 1  # Minimum batch size to try
 model_name = os.getenv("MODEL_NAME")
 tokenizer_name = os.getenv("TOKENIZER_NAME")
 
+
 login(token=HF_TOKEN)
 
 try:
-    AutoModel.from_pretrained(model_name)
-    AutoTokenizer.from_pretrained(tokenizer_name)
+    AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True)
+    AutoTokenizer.from_pretrained(
+        tokenizer_name,
+        trust_remote_code=True,
+        use_fast=False if "osunlp" in tokenizer_name else True,
+    )
     print(f"Successfully loaded model: {model_name} and tokenizer: {tokenizer_name}")
 except Exception as e:
     raise ValueError(f"Invalid model or tokenizer name: {e}")
