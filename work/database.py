@@ -52,7 +52,7 @@ class Missings(Document):
         "collection": "missing_cells",
         "indexes": [
             {"fields": ["table", "row", "column"],
-                "unique": True}  # Prevent duplicates
+                "unique": True}
         ],
         "write_concern": WriteConcern(w=1, j=False),
     }
@@ -166,7 +166,10 @@ class Database:
                 "correct",
                 "model",
                 "avg_time",
-                "error"
+                "error",
+                "cell",
+                "model_response",
+                "correct_response"
             )
             .timeout(False)
         )
@@ -184,7 +187,7 @@ class Database:
             "model_response",
             "correct_response",
             "error"
-        ).timeout(False)  # No timeout for large queries
+        ).timeout(False)
 
     def get_stats_by_model(self, model_name: str) -> Dict[str, float]:
         """Get statistics for a specific model"""

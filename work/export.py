@@ -1,6 +1,6 @@
 from database import Cea, Database
 import math
-import torch
+import re
 import json
 import platform
 import os
@@ -13,6 +13,7 @@ class Export:
         self.TOTAL_CELLS = 84907
         self.db = db
         self.stats = self.load_stats()
+        self.response_pattern = re.compile(r"<(.*?)>")
 
     def load_stats(self):
         stats_dict = {}
@@ -21,6 +22,12 @@ class Export:
                 stats_dict[data["table"]] = data["stats"]
 
         return stats_dict
+
+    def get_response(self, model_response: str):
+        result = self.response_pattern.search(model_response)
+        if result:
+            return f"<{result.group(1)}>"
+        return model_response
 
     def truncate(self, number, digits) -> float:
         # Improve accuracy with floating point operations, to avoid truncate(16.4, 2) = 16.39 or truncate(-1.13, 2) = -1.12
@@ -42,7 +49,7 @@ class Export:
                 table_statistics[table] = {"total": 0, "correct": 0}
 
             table_statistics[table]["total"] += 1
-            if document.correct:
+            if document.correct_response == self.get_response(document.model_response):
                 table_statistics[table]["correct"] += 1
 
         # Calculate accuracy per table and identify tables above threshold
@@ -153,7 +160,8 @@ class Export:
         }
 
         acro_typo_alias = {}
-
+        nils = 0
+        total_nils = 0
         for document in all_documents:
             table = document.table
             row = document.row
@@ -163,7 +171,8 @@ class Export:
                 if document.avg_time is not None:
                     total_time += document.avg_time
                     cell_set.add(f"{table}_{row}_{column}")
-                    if document.correct:
+
+                    if document.correct_response == self.get_response(document.model_response):
                         total_correct += 1
 
                     # Process cell-level stats (always)
@@ -176,8 +185,12 @@ class Export:
                                 except ValueError:
                                     continue
 
-                            if document.correct and stat_value > 0:
+                            if document.correct_response == self.get_response(document.model_response) and stat_value > 0:
                                 model_stats[stat] += 1
+                    if document.correct_response == "<NIL [DESCRIPTION] Not in list [TYPE] None>":
+                        total_nils += 1
+                        if document.correct_response == self.get_response(document.model_response):
+                            nils += 1
 
                     # Process table-level stats (only for tables above threshold)
                     if table in tables_above_threshold:
@@ -202,7 +215,7 @@ class Export:
                                     if tag_value in size_categories[stat]:
                                         if (
                                             table not in counted_tables[tag_value]
-                                            and document.correct
+                                            and document.correct_response == self.get_response(document.model_response)
                                         ):
                                             model_stats[tag_value] += 1
                                             counted_tables[tag_value].add(
@@ -223,7 +236,7 @@ class Export:
                                             "typos_added",
                                             "alias_added",
                                         ]
-                                        and document.correct
+                                        and document.correct_response == self.get_response(document.model_response)
                                     ):
                                         if table not in acro_typo_alias:
                                             acro_typo_alias[table] = {}
@@ -236,7 +249,8 @@ class Export:
                                             counted_tables[stat].add(table)
                                     else:
                                         if (
-                                            document.correct
+                                            document.correct_response == self.get_response(
+                                                document.model_response)
                                             and stat_value > 0
                                             and table not in counted_tables[stat]
                                         ):
@@ -260,6 +274,9 @@ class Export:
         model_stats = {
             mapping_dict.get(key, key): value for key, value in model_stats.items()
         }
+
+        model_stats["nils"] = nils
+        final_stats["nils"] = f"{math.trunc(nils / total_nils * 100 * 10) / 10}%"
 
         return {
             "system": platform.system(),

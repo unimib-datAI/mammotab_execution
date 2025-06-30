@@ -17,6 +17,7 @@ db = Database()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
+
 MODEL_NAME = os.getenv("OPENAI_MODEL_NAME")
 INITIAL_BATCH_SIZE = int(os.getenv("BATCH_SIZE", 8))
 MIN_BATCH_SIZE = 1
@@ -155,7 +156,6 @@ dataloader = DataLoader(custom_dataset, batch_size=INITIAL_BATCH_SIZE)
 
 for batch in tqdm(dataloader):
     process_with_retry(batch, INITIAL_BATCH_SIZE)
-
 
 export = Export(db=db)
 stats_export = export.compute_stats()
