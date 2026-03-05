@@ -18,27 +18,27 @@ done
 # Create job files and submit
 for chunk in chunks/${CHUNK_PREFIX}*.jsonl; do
     JOB_FILE="chunks/job_${chunk##*/}.slurm"
-    
+
     # Generate job file
     cat << EOF > "$JOB_FILE"
 #!/bin/bash
-#SBATCH --account=m.cremaschi
-#SBATCH --partition=only-one-gpu
+#SBATCH --account=datai
+#SBATCH --partition=datai01
 #SBATCH --job-name=${chunk%.jsonl}
 #SBATCH --export=MODEL_NAME="$MODEL_NAME",BATCH_SIZE="$BATCH_SIZE",CHUNK_FILE="$chunk"
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --gres=gpu:1
-#SBATCH --output=/home/m.cremaschi/mammotab_execution/job_logs/out_%x_%j.log 
-#SBATCH --error=/home/m.cremaschi/mammotab_execution/job_logs/error_%x_%j.log
+#SBATCH --output=/scratch_share/datai/dchieregato/job_logs/out_%x_%j.log
+#SBATCH --error=/scratch_share/datai/dchieregato/job_logs/error_%x_%j.log
 ### Definitions
-export BASEDIR="/home/m.cremaschi/mammotab_execution"
-export SHRDIR="/scratch_share/datai/m.cremaschi"
+export BASEDIR="/scratch_share/datai/dchieregato"
+export SHRDIR="/scratch_share/datai/dchieregato"
 export LOCDIR="/scratch_local"
 export TMPDIR=\$SHRDIR/\$BASEDIR/tmp_\${SLURM_JOB_NAME}_\${SLURM_JOB_ID}
 
-cd /home/m.cremaschi/mammotab_execution/
+cd /scratch_share/datai/dchieregato/
 
 ### Header
 pwd; hostname; date
@@ -46,10 +46,9 @@ pwd; hostname; date
 module purge
 module load amd/slurm
 
-source /home/m.cremaschi/.bashrc
-conda activate python3.11
+source /scratch_share/datai/dchieregato/mammotab_execution/.venv/bin/activate
 
-torchrun --nproc-per-node=1 --standalone work/main.py \
+python work/main.py \
     --model_name "\$MODEL_NAME" \
     --batch_size "\$BATCH_SIZE" \
     --hf_token "\$HF_TOKEN" \
