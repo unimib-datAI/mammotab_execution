@@ -53,7 +53,7 @@ echo "HF_TOKEN: $HF_TOKEN"
 
 source /scratch_share/datai/dchieregato/mammotab_execution/.venv/bin/activate
 
-python work/test-model.py \
+python work/main.py \
     --model_name "\$MODEL_NAME" \
     --hf_token "\$HF_TOKEN"
 
