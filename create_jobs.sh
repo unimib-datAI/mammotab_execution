@@ -30,8 +30,8 @@ for chunk in chunks/${CHUNK_PREFIX}*.jsonl; do
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
 #SBATCH --gres=gpu:1
-#SBATCH --output=/scratch_share/datai/dchieregato/job_logs/out_%x_%j.log
-#SBATCH --error=/scratch_share/datai/dchieregato/job_logs/error_%x_%j.log
+#SBATCH --output=/scratch_share/datai/dchieregato/mammotab_execution/job_logs/out_%x_%j.log
+#SBATCH --error=/scratch_share/datai/dchieregato/mammotab_execution/job_logs/error_%x_%j.log
 ### Definitions
 export BASEDIR="/scratch_share/datai/dchieregato"
 export SHRDIR="/scratch_share/datai/dchieregato"

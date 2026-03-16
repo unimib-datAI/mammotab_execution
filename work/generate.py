@@ -2,7 +2,7 @@ import re
 import os
 import torch
 from typing import List, Optional
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer,BitsAndBytesConfig
 from contextlib import nullcontext
 
 test_locally = os.getenv("TEST_LOCALLY", "False").lower() == "true"
@@ -22,13 +22,18 @@ class LLM:
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
 
+        quantization_config = None
+        if load_in_4bit:
+            quantization_config = BitsAndBytesConfig(load_in_4bit=True)
+        elif load_in_8bit:
+            quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+
         # Model configuration
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             device_map="auto" if self.device == "cuda" else None,
             torch_dtype=self.dtype,
-            load_in_4bit=load_in_4bit,
-            load_in_8bit=load_in_8bit,
+            quantization_config=quantization_config,
             cache_dir=cache_dir,
             trust_remote_code=True,
         ).to(self.device)
