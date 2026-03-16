@@ -6,3 +6,9 @@ huggingface_hub>=0.16.0
 python-dotenv>=0.19.0
 tqdm-loggable
 dotenv
+tiktoken
+einops
+blobfile
+sentencepiece
+protobuf
+pytest
