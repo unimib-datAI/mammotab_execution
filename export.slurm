@@ -25,4 +25,6 @@ module load amd/slurm
 
 set -a && source .env && set +a
 
+source /scratch_share/datai/dchieregato/mammotab_execution/.venv/bin/activate
+
 python work/export.py
