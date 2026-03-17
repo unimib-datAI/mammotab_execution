@@ -6,7 +6,7 @@ from tqdm_loggable.auto import tqdm
 from database import Database
 from custom_dataset import CustomDataset
 from torch.utils.data import DataLoader
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoTokenizer
 from huggingface_hub import login
 import logging
 from dotenv import load_dotenv
@@ -43,10 +43,11 @@ db = Database(model_name=model_name)
 login(token=HF_TOKEN)
 
 try:
-    AutoModel.from_pretrained(model_name, trust_remote_code=True)
+    from transformers import AutoConfig
+    AutoConfig.from_pretrained(model_name, trust_remote_code=True)
     AutoTokenizer.from_pretrained(tokenizer_name)
     print(
-        f"Successfully loaded model: {model_name} and tokenizer: {tokenizer_name}")
+        f"Successfully verified model: {model_name} and tokenizer: {tokenizer_name}")
 except Exception as e:
     raise ValueError(f"Invalid model or tokenizer name: {e}")
 
