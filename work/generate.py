@@ -36,7 +36,7 @@ class LLM:
             quantization_config=quantization_config,
             cache_dir=cache_dir,
             trust_remote_code=True,
-        ).to(self.device)
+        )
 
         # Tokenizer with optimized settings
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -73,7 +73,7 @@ class LLM:
             if self.tokenizer.model_max_length < 32768
             else 32768,
             return_token_type_ids=False,
-        ).to(self.device)
+        )
 
     def get_response(self, generated_output: str) -> str:
         """Optimized response extraction"""
