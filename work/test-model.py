@@ -4,7 +4,7 @@ from huggingface_hub import login
 import logging
 from dotenv import load_dotenv
 from generate import LLM
-from model_utils import get_run_model_name, resolve_model_inputs
+from model_utils import get_run_model_name, parse_bool, resolve_model_inputs
 
 load_dotenv()
 MIN_BATCH_SIZE = 1
@@ -22,6 +22,10 @@ parser.add_argument("--tokenizer_name", type=str,
                     help="Name or local path of the tokenizer")
 parser.add_argument("--adapter_path", type=str,
                     help="Local path to a PEFT adapter directory")
+parser.add_argument("--load_in_4bit", type=str,
+                    help="Load the model with 4-bit quantization")
+parser.add_argument("--load_in_8bit", type=str,
+                    help="Load the model with 8-bit quantization")
 parser.add_argument("--hf_token", type=str, help="Hugging Face token")
 
 args = parser.parse_args()
@@ -33,6 +37,12 @@ model_name, tokenizer_name, adapter_path = resolve_model_inputs(
 )
 run_model_name = get_run_model_name(model_name, adapter_path)
 HF_TOKEN = args.hf_token or os.getenv("HF_TOKEN")
+load_in_4bit = parse_bool(
+    args.load_in_4bit if args.load_in_4bit is not None else os.getenv("LOAD_IN_4BIT")
+)
+load_in_8bit = parse_bool(
+    args.load_in_8bit if args.load_in_8bit is not None else os.getenv("LOAD_IN_8BIT")
+)
 
 print("MODEL NAME: ", model_name)
 print("TOKENIZER NAME: ", tokenizer_name)
@@ -49,6 +59,8 @@ try:
         model_name=model_name,
         tokenizer_name=tokenizer_name,
         adapter_path=adapter_path,
+        load_in_4bit=load_in_4bit,
+        load_in_8bit=load_in_8bit,
     )
 
     responses = llm.generate([test_prompt], chunk_size=1)

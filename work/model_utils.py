@@ -5,6 +5,8 @@ from typing import Optional, Tuple
 
 
 ADAPTER_WEIGHT_FILES = ("adapter_model.safetensors", "adapter_model.bin")
+TRUE_VALUES = {"1", "true", "yes", "y", "on"}
+FALSE_VALUES = {"0", "false", "no", "n", "off"}
 
 
 def clean_optional(value: Optional[str]) -> Optional[str]:
@@ -13,6 +15,20 @@ def clean_optional(value: Optional[str]) -> Optional[str]:
 
     value = value.strip()
     return value or None
+
+
+def parse_bool(value: Optional[str], default: bool = False) -> bool:
+    value = clean_optional(value)
+    if value is None:
+        return default
+
+    normalized = value.lower()
+    if normalized in TRUE_VALUES:
+        return True
+    if normalized in FALSE_VALUES:
+        return False
+
+    raise ValueError(f"Invalid boolean value: {value}")
 
 
 def normalize_adapter_path(adapter_path: Optional[str]) -> Optional[str]:

@@ -24,6 +24,9 @@ class LLM:
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
         adapter_path = normalize_adapter_path(adapter_path)
 
+        if load_in_4bit and load_in_8bit:
+            raise ValueError("Only one of load_in_4bit and load_in_8bit can be true.")
+
         quantization_config = None
         if load_in_4bit:
             quantization_config = BitsAndBytesConfig(load_in_4bit=True)
@@ -38,6 +41,7 @@ class LLM:
             quantization_config=quantization_config,
             cache_dir=cache_dir,
             trust_remote_code=True,
+            low_cpu_mem_usage=True,
         )
 
         if adapter_path:

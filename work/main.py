@@ -2,7 +2,7 @@ import os
 import argparse
 from time import time
 from generate import LLM
-from model_utils import get_run_model_name, resolve_model_inputs
+from model_utils import get_run_model_name, parse_bool, resolve_model_inputs
 from tqdm_loggable.auto import tqdm
 from database import Database
 from custom_dataset import CustomDataset
@@ -28,6 +28,10 @@ parser.add_argument("--tokenizer_name", type=str,
                     help="Name or local path of the tokenizer")
 parser.add_argument("--adapter_path", type=str,
                     help="Local path to a PEFT adapter directory")
+parser.add_argument("--load_in_4bit", type=str,
+                    help="Load the model with 4-bit quantization")
+parser.add_argument("--load_in_8bit", type=str,
+                    help="Load the model with 8-bit quantization")
 parser.add_argument("--batch_size", type=str, help="Batch size for processing")
 parser.add_argument("--hf_token", type=str, help="Hugging Face token")
 parser.add_argument("--input_file", type=str, help="Path to the input file")
@@ -41,6 +45,12 @@ model_name, tokenizer_name, adapter_path = resolve_model_inputs(
 )
 run_model_name = get_run_model_name(model_name, adapter_path)
 HF_TOKEN = args.hf_token or os.getenv("HF_TOKEN")
+load_in_4bit = parse_bool(
+    args.load_in_4bit if args.load_in_4bit is not None else os.getenv("LOAD_IN_4BIT")
+)
+load_in_8bit = parse_bool(
+    args.load_in_8bit if args.load_in_8bit is not None else os.getenv("LOAD_IN_8BIT")
+)
 INITIAL_BATCH_SIZE = (
     int(args.batch_size) if args.batch_size else int(
         os.getenv("BATCH_SIZE", "8"))
@@ -72,6 +82,8 @@ llm = LLM(
     model_name=model_name,
     tokenizer_name=tokenizer_name,
     adapter_path=adapter_path,
+    load_in_4bit=load_in_4bit,
+    load_in_8bit=load_in_8bit,
 )
 
 
