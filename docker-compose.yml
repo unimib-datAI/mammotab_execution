@@ -29,6 +29,7 @@ services:
     volumes:
       - ./work:/home/jovyan/work
       - ./my-data:/data/my-data
+      - ./models:/models
     deploy:
       resources:
         reservations:
