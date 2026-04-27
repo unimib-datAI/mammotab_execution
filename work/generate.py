@@ -2,8 +2,8 @@ import re
 import os
 import torch
 from typing import List, Optional
-from transformers import AutoModelForCausalLM, AutoTokenizer,BitsAndBytesConfig
-from contextlib import nullcontext
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from model_utils import normalize_adapter_path
 
 test_locally = os.getenv("TEST_LOCALLY", "False").lower() == "true"
 shared_cache = "/scratch_share/datai/`whoami`"
@@ -18,9 +18,11 @@ class LLM:
         device: Optional[str] = None,
         load_in_4bit: bool = False,
         load_in_8bit: bool = False,
+        adapter_path: Optional[str] = None,
     ):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
+        adapter_path = normalize_adapter_path(adapter_path)
 
         quantization_config = None
         if load_in_4bit:
@@ -37,6 +39,23 @@ class LLM:
             cache_dir=cache_dir,
             trust_remote_code=True,
         )
+
+        if adapter_path:
+            try:
+                from peft import PeftModel
+            except ImportError as e:
+                raise ImportError(
+                    "Loading adapters requires the peft package. "
+                    "Install it with `pip install peft`."
+                ) from e
+
+            self.model = PeftModel.from_pretrained(
+                self.model,
+                adapter_path,
+                is_trainable=False,
+            )
+
+        self.model.eval()
 
         # Tokenizer with optimized settings
         self.tokenizer = AutoTokenizer.from_pretrained(

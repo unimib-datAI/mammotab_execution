@@ -1,4 +1,5 @@
 from database import Database
+from model_utils import clean_optional, get_run_model_name
 import math
 import torch
 import json
@@ -11,7 +12,10 @@ dotenv_path = os.path.join(root_dir, ".env")
 
 load_dotenv(dotenv_path=dotenv_path)
 
-model_name = os.getenv("MODEL_NAME")
+model_name = get_run_model_name(
+    os.getenv("MODEL_NAME"),
+    clean_optional(os.getenv("ADAPTER_PATH")),
+)
 test_locally = os.getenv("TEST_LOCALLY", "False").lower() == "true"
 
 

@@ -2,6 +2,7 @@ import os
 import argparse
 from time import time
 from generate import LLM
+from model_utils import get_run_model_name, resolve_model_inputs
 from tqdm_loggable.auto import tqdm
 from database import Database
 from custom_dataset import CustomDataset
@@ -23,14 +24,22 @@ parser = argparse.ArgumentParser(
     description="Run the main script with arguments.")
 parser.add_argument("--model_name", type=str,
                     help="Name of the Hugging Face model")
+parser.add_argument("--tokenizer_name", type=str,
+                    help="Name or local path of the tokenizer")
+parser.add_argument("--adapter_path", type=str,
+                    help="Local path to a PEFT adapter directory")
 parser.add_argument("--batch_size", type=str, help="Batch size for processing")
 parser.add_argument("--hf_token", type=str, help="Hugging Face token")
 parser.add_argument("--input_file", type=str, help="Path to the input file")
 
 args = parser.parse_args()
 
-model_name = args.model_name or os.getenv("MODEL_NAME")
-tokenizer_name = model_name
+model_name, tokenizer_name, adapter_path = resolve_model_inputs(
+    model_name=args.model_name or os.getenv("MODEL_NAME"),
+    tokenizer_name=args.tokenizer_name or os.getenv("TOKENIZER_NAME"),
+    adapter_path=args.adapter_path or os.getenv("ADAPTER_PATH"),
+)
+run_model_name = get_run_model_name(model_name, adapter_path)
 HF_TOKEN = args.hf_token or os.getenv("HF_TOKEN")
 INITIAL_BATCH_SIZE = (
     int(args.batch_size) if args.batch_size else int(
@@ -38,9 +47,10 @@ INITIAL_BATCH_SIZE = (
 )
 CHUNK_FILE = args.input_file or os.getenv(
     "CHUNK_FILE", "./mammotab_sample.jsonl")
-db = Database(model_name=model_name)
+db = Database(model_name=run_model_name)
 
-login(token=HF_TOKEN)
+if HF_TOKEN:
+    login(token=HF_TOKEN)
 
 try:
     from transformers import AutoConfig
@@ -48,6 +58,8 @@ try:
     AutoTokenizer.from_pretrained(tokenizer_name)
     print(
         f"Successfully verified model: {model_name} and tokenizer: {tokenizer_name}")
+    if adapter_path:
+        print(f"Using local adapter: {adapter_path}")
 except Exception as e:
     raise ValueError(f"Invalid model or tokenizer name: {e}")
 
@@ -56,7 +68,11 @@ custom_dataset = CustomDataset(
     tokenizer_name=tokenizer_name,
     file_path=CHUNK_FILE,
 )
-llm = LLM(model_name=model_name, tokenizer_name=tokenizer_name)
+llm = LLM(
+    model_name=model_name,
+    tokenizer_name=tokenizer_name,
+    adapter_path=adapter_path,
+)
 
 
 def process_batch(batch, current_batch_size):
@@ -96,7 +112,7 @@ def process_batch(batch, current_batch_size):
         # If successful, save results
         for i in range(len(prompts)):
             db.save_response(chunk_file=CHUNK_FILE,
-                             model=model_name,
+                             model=run_model_name,
                              prompt=prompts[i],
                              cell=cells[i],
                              table=tables[i],

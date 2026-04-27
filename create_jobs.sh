@@ -25,7 +25,7 @@ for chunk in chunks/${CHUNK_PREFIX}*.jsonl; do
 #SBATCH --account=datai
 #SBATCH --partition=datai01
 #SBATCH --job-name=${chunk%.jsonl}
-#SBATCH --export=MODEL_NAME="$MODEL_NAME",BATCH_SIZE="$BATCH_SIZE",CHUNK_FILE="$chunk"
+#SBATCH --export=MODEL_NAME="$MODEL_NAME",TOKENIZER_NAME="$TOKENIZER_NAME",ADAPTER_PATH="$ADAPTER_PATH",BATCH_SIZE="$BATCH_SIZE",CHUNK_FILE="$chunk"
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
@@ -50,12 +50,20 @@ module load amd/slurm
 set -a && source .env && set +a
 
 echo "MODEL_NAME: $MODEL_NAME"
-echo "HF_TOKEN: $HF_TOKEN"
+echo "TOKENIZER_NAME: $TOKENIZER_NAME"
+echo "ADAPTER_PATH: $ADAPTER_PATH"
+if [ -n "\$HF_TOKEN" ]; then
+    echo "HF_TOKEN: set"
+else
+    echo "HF_TOKEN: not set"
+fi
 
 source /scratch_share/datai/dchieregato/mammotab_execution/.venv/bin/activate
 
 python work/main.py \
     --model_name "\$MODEL_NAME" \
+    --tokenizer_name "\$TOKENIZER_NAME" \
+    --adapter_path "\$ADAPTER_PATH" \
     --hf_token "\$HF_TOKEN"
 
 EOF

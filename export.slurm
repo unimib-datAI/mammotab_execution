@@ -2,7 +2,7 @@
 #SBATCH --account=datai
 #SBATCH --partition=datai01
 #SBATCH --job-name=export
-#SBATCH --export=MODEL_NAME="$MODEL_NAME",BATCH_SIZE="$BATCH_SIZE",CHUNK_FILE="$chunk"
+#SBATCH --export=MODEL_NAME="$MODEL_NAME",TOKENIZER_NAME="$TOKENIZER_NAME",ADAPTER_PATH="$ADAPTER_PATH",BATCH_SIZE="$BATCH_SIZE",CHUNK_FILE="$chunk"
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G

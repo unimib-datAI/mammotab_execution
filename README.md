@@ -1,5 +1,7 @@
 ## README
 
 1. Run the init.sh script to download the mammotab dataset for LLMs
-2. Insert the model_name in the created .env file
-3. Run docker-compose up
+2. Insert the `MODEL_NAME` in the created `.env` file
+3. Optional: set `TOKENIZER_NAME` if the tokenizer differs from the model
+4. Optional: set `ADAPTER_PATH` to a local PEFT adapter directory containing `adapter_config.json` and `adapter_model.safetensors`; `MODEL_NAME` remains the base model
+5. Run docker-compose up
