@@ -26,7 +26,7 @@ for chunk in chunks/${CHUNK_PREFIX}*.jsonl; do
 #SBATCH --account=datai
 #SBATCH --partition=datai01
 #SBATCH --job-name=${chunk%.jsonl}
-#SBATCH --export=MODEL_NAME="$MODEL_NAME",TOKENIZER_NAME="$TOKENIZER_NAME",ADAPTER_PATH="$ADAPTER_PATH",LOAD_IN_4BIT="$LOAD_IN_4BIT",LOAD_IN_8BIT="$LOAD_IN_8BIT",OFFLOAD_DIR="$OFFLOAD_DIR",BATCH_SIZE="$BATCH_SIZE",CHUNK_FILE="$chunk"
+#SBATCH --export=MODEL_NAME="$MODEL_NAME",TOKENIZER_NAME="$TOKENIZER_NAME",ADAPTER_PATH="$ADAPTER_PATH",LOAD_IN_4BIT="$LOAD_IN_4BIT",LOAD_IN_8BIT="$LOAD_IN_8BIT",OFFLOAD_DIR="$OFFLOAD_DIR",MODEL_DTYPE="$MODEL_DTYPE",BATCH_SIZE="$BATCH_SIZE",CHUNK_FILE="$chunk"
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=$SLURM_MEM
@@ -58,6 +58,7 @@ echo "ADAPTER_PATH: $ADAPTER_PATH"
 echo "LOAD_IN_4BIT: $LOAD_IN_4BIT"
 echo "LOAD_IN_8BIT: $LOAD_IN_8BIT"
 echo "OFFLOAD_DIR: \$OFFLOAD_DIR"
+echo "MODEL_DTYPE: \$MODEL_DTYPE"
 if [ -n "\$HF_TOKEN" ]; then
     echo "HF_TOKEN: set"
 else
@@ -73,6 +74,7 @@ python work/main.py \
     --load_in_4bit "\$LOAD_IN_4BIT" \
     --load_in_8bit "\$LOAD_IN_8BIT" \
     --offload_dir "\$OFFLOAD_DIR" \
+    --model_dtype "\$MODEL_DTYPE" \
     --hf_token "\$HF_TOKEN"
 
 EOF

@@ -28,6 +28,8 @@ parser.add_argument("--load_in_8bit", type=str,
                     help="Load the model with 8-bit quantization")
 parser.add_argument("--offload_dir", type=str,
                     help="Directory used by accelerate for disk offload")
+parser.add_argument("--model_dtype", type=str,
+                    help="Model dtype: auto, bfloat16, float16, or float32")
 parser.add_argument("--hf_token", type=str, help="Hugging Face token")
 
 args = parser.parse_args()
@@ -40,6 +42,7 @@ model_name, tokenizer_name, adapter_path = resolve_model_inputs(
 run_model_name = get_run_model_name(model_name, adapter_path)
 HF_TOKEN = args.hf_token or os.getenv("HF_TOKEN")
 offload_dir = args.offload_dir or os.getenv("OFFLOAD_DIR")
+model_dtype = args.model_dtype or os.getenv("MODEL_DTYPE")
 load_in_4bit = parse_bool(
     args.load_in_4bit if args.load_in_4bit is not None else os.getenv("LOAD_IN_4BIT")
 )
@@ -51,6 +54,7 @@ print("MODEL NAME: ", model_name)
 print("TOKENIZER NAME: ", tokenizer_name)
 print("ADAPTER PATH: ", adapter_path)
 print("OFFLOAD DIR: ", offload_dir)
+print("MODEL DTYPE: ", model_dtype)
 print("HF_TOKEN SET: ", bool(HF_TOKEN))
 
 
@@ -66,6 +70,7 @@ try:
         load_in_4bit=load_in_4bit,
         load_in_8bit=load_in_8bit,
         offload_dir=offload_dir,
+        model_dtype=model_dtype,
     )
 
     responses = llm.generate([test_prompt], chunk_size=1)

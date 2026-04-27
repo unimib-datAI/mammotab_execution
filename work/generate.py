@@ -10,6 +10,28 @@ test_locally = os.getenv("TEST_LOCALLY", "False").lower() == "true"
 shared_cache = "/scratch_share/datai/`whoami`"
 cache_dir = shared_cache if os.path.exists(shared_cache) else None
 
+DTYPE_ALIASES = {
+    "auto": "auto",
+    "bfloat16": torch.bfloat16,
+    "bf16": torch.bfloat16,
+    "float16": torch.float16,
+    "fp16": torch.float16,
+    "float32": torch.float32,
+    "fp32": torch.float32,
+}
+
+
+def resolve_dtype(dtype: Optional[str], device: str):
+    if dtype is None or not dtype.strip():
+        return "auto" if device == "cuda" else torch.float32
+
+    normalized = dtype.strip().lower()
+    if normalized not in DTYPE_ALIASES:
+        valid_values = ", ".join(sorted(DTYPE_ALIASES))
+        raise ValueError(f"Invalid model dtype: {dtype}. Valid values: {valid_values}")
+
+    return DTYPE_ALIASES[normalized]
+
 
 class LLM:
     def __init__(
@@ -21,9 +43,10 @@ class LLM:
         load_in_8bit: bool = False,
         adapter_path: Optional[str] = None,
         offload_dir: Optional[str] = None,
+        model_dtype: Optional[str] = None,
     ):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.dtype = torch.float16 if self.device == "cuda" else torch.float32
+        self.dtype = resolve_dtype(model_dtype or os.getenv("MODEL_DTYPE"), self.device)
         adapter_path = normalize_adapter_path(adapter_path)
         offload_dir = offload_dir or os.getenv("OFFLOAD_DIR")
         if offload_dir is None and self.device == "cuda":
@@ -45,7 +68,7 @@ class LLM:
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             device_map="auto" if self.device == "cuda" else None,
-            torch_dtype=self.dtype,
+            dtype=self.dtype,
             quantization_config=quantization_config,
             cache_dir=cache_dir,
             trust_remote_code=True,
@@ -91,8 +114,6 @@ class LLM:
         self.generation_config = {
             "max_new_tokens": 128,
             "do_sample": False,
-            "temperature": 0.7,
-            "top_p": 0.9,
             "repetition_penalty": 1.1,
             "pad_token_id": self.tokenizer.eos_token_id,
         }
@@ -109,6 +130,15 @@ class LLM:
             else 32768,
             return_token_type_ids=False,
         )
+
+    def move_inputs_to_device(self, model_inputs: dict) -> dict:
+        if self.device != "cuda":
+            return model_inputs
+
+        return {
+            key: value.to(self.device) if torch.is_tensor(value) else value
+            for key, value in model_inputs.items()
+        }
 
     def get_response(self, generated_output: str) -> str:
         """Optimized response extraction"""
@@ -129,7 +159,7 @@ class LLM:
                 chunk_texts = texts[i : i + chunk_size]
 
                 # Tokenize chunk
-                model_inputs = self.tokenize(chunk_texts)
+                model_inputs = self.move_inputs_to_device(self.tokenize(chunk_texts))
 
                 # Generate responses
                 generated_ids = self.model.generate(
