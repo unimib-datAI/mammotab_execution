@@ -3,5 +3,6 @@ __pycache__
 mammotab_sample.jsonl
 .env
 mongo-data
+models
 chunks/*.jsonl
 chunks/*.slurm
