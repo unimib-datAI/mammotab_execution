@@ -32,6 +32,8 @@ parser.add_argument("--load_in_4bit", type=str,
                     help="Load the model with 4-bit quantization")
 parser.add_argument("--load_in_8bit", type=str,
                     help="Load the model with 8-bit quantization")
+parser.add_argument("--offload_dir", type=str,
+                    help="Directory used by accelerate for disk offload")
 parser.add_argument("--batch_size", type=str, help="Batch size for processing")
 parser.add_argument("--hf_token", type=str, help="Hugging Face token")
 parser.add_argument("--input_file", type=str, help="Path to the input file")
@@ -45,6 +47,7 @@ model_name, tokenizer_name, adapter_path = resolve_model_inputs(
 )
 run_model_name = get_run_model_name(model_name, adapter_path)
 HF_TOKEN = args.hf_token or os.getenv("HF_TOKEN")
+offload_dir = args.offload_dir or os.getenv("OFFLOAD_DIR")
 load_in_4bit = parse_bool(
     args.load_in_4bit if args.load_in_4bit is not None else os.getenv("LOAD_IN_4BIT")
 )
@@ -84,6 +87,7 @@ llm = LLM(
     adapter_path=adapter_path,
     load_in_4bit=load_in_4bit,
     load_in_8bit=load_in_8bit,
+    offload_dir=offload_dir,
 )
 
 

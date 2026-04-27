@@ -1,6 +1,7 @@
 import re
 import os
 import torch
+from pathlib import Path
 from typing import List, Optional
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from model_utils import normalize_adapter_path
@@ -19,10 +20,17 @@ class LLM:
         load_in_4bit: bool = False,
         load_in_8bit: bool = False,
         adapter_path: Optional[str] = None,
+        offload_dir: Optional[str] = None,
     ):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
         adapter_path = normalize_adapter_path(adapter_path)
+        offload_dir = offload_dir or os.getenv("OFFLOAD_DIR")
+        if offload_dir is None and self.device == "cuda":
+            offload_dir = os.path.join(os.getenv("TMPDIR", "/tmp"), "model_offload")
+
+        if offload_dir:
+            Path(offload_dir).mkdir(parents=True, exist_ok=True)
 
         if load_in_4bit and load_in_8bit:
             raise ValueError("Only one of load_in_4bit and load_in_8bit can be true.")
@@ -42,6 +50,8 @@ class LLM:
             cache_dir=cache_dir,
             trust_remote_code=True,
             low_cpu_mem_usage=True,
+            offload_folder=offload_dir,
+            offload_state_dict=True,
         )
 
         if adapter_path:
@@ -57,6 +67,8 @@ class LLM:
                 self.model,
                 adapter_path,
                 is_trainable=False,
+                offload_folder=offload_dir,
+                low_cpu_mem_usage=True,
             )
 
         self.model.eval()
