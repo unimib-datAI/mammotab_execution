@@ -58,16 +58,20 @@ class LLM:
         if load_in_4bit and load_in_8bit:
             raise ValueError("Only one of load_in_4bit and load_in_8bit can be true.")
 
+        device_map = "auto" if self.device == "cuda" else None
         quantization_config = None
         if load_in_4bit:
             quantization_config = BitsAndBytesConfig(load_in_4bit=True)
         elif load_in_8bit:
-            quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+            quantization_config = BitsAndBytesConfig(
+                load_in_8bit=True,
+                llm_int8_enable_fp32_cpu_offload=True,
+            )
 
         # Model configuration
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            device_map="auto" if self.device == "cuda" else None,
+            device_map=device_map,
             dtype=self.dtype,
             quantization_config=quantization_config,
             cache_dir=cache_dir,
