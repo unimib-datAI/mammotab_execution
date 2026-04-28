@@ -1,14 +1,17 @@
 import re
 import os
 import torch
+import logging
 from pathlib import Path
 from typing import List, Optional
+from time import perf_counter
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from model_utils import normalize_adapter_path
 
 test_locally = os.getenv("TEST_LOCALLY", "False").lower() == "true"
 shared_cache = "/scratch_share/datai/`whoami`"
 cache_dir = shared_cache if os.path.exists(shared_cache) else None
+logger = logging.getLogger(__name__)
 
 DTYPE_ALIASES = {
     "auto": "auto",
@@ -33,6 +36,18 @@ def resolve_dtype(dtype: Optional[str], device: str):
     return DTYPE_ALIASES[normalized]
 
 
+def resolve_max_input_tokens(model_max_length: int) -> int:
+    configured = os.getenv("MAX_INPUT_TOKENS")
+    hard_cap = model_max_length if model_max_length < 32768 else 32768
+    if configured is None or not configured.strip():
+        return hard_cap
+
+    value = int(configured)
+    if value <= 0:
+        raise ValueError("MAX_INPUT_TOKENS must be a positive integer.")
+    return min(value, hard_cap)
+
+
 class LLM:
     def __init__(
         self,
@@ -49,7 +64,9 @@ class LLM:
         self.dtype = resolve_dtype(model_dtype or os.getenv("MODEL_DTYPE"), self.device)
         adapter_path = normalize_adapter_path(adapter_path)
         offload_dir = offload_dir or os.getenv("OFFLOAD_DIR")
-        if offload_dir is None and self.device == "cuda":
+        # In 4-bit mode we avoid automatic CPU/disk offload: if it does not fit
+        # in VRAM we prefer failing fast over appearing stuck for a long time.
+        if offload_dir is None and self.device == "cuda" and not load_in_4bit:
             offload_dir = os.path.join(os.getenv("TMPDIR", "/tmp"), "model_offload")
 
         if offload_dir:
@@ -58,7 +75,10 @@ class LLM:
         if load_in_4bit and load_in_8bit:
             raise ValueError("Only one of load_in_4bit and load_in_8bit can be true.")
 
-        device_map = "auto" if self.device == "cuda" else None
+        if self.device == "cuda" and load_in_4bit:
+            device_map = {"": 0}
+        else:
+            device_map = "auto" if self.device == "cuda" else None
         quantization_config = None
         if load_in_4bit:
             quantization_config = BitsAndBytesConfig(load_in_4bit=True)
@@ -78,7 +98,7 @@ class LLM:
             trust_remote_code=True,
             low_cpu_mem_usage=True,
             offload_folder=offload_dir,
-            offload_state_dict=True,
+            offload_state_dict=offload_dir is not None,
         )
 
         if adapter_path:
@@ -109,6 +129,9 @@ class LLM:
             cache_dir=cache_dir,
         )
         self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.max_input_tokens = resolve_max_input_tokens(
+            self.tokenizer.model_max_length
+        )
 
         # Pre-compile regex patterns
         self.response_pattern = re.compile(r"<(.*?)>")
@@ -129,9 +152,7 @@ class LLM:
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=self.tokenizer.model_max_length
-            if self.tokenizer.model_max_length < 32768
-            else 32768,
+            max_length=self.max_input_tokens,
             return_token_type_ids=False,
         )
 
@@ -157,18 +178,38 @@ class LLM:
     def generate(self, texts: List[str], chunk_size: int = 64) -> List[str]:
         """Optimized batch generation with memory management"""
         responses = []
+        total_chunks = (len(texts) + chunk_size - 1) // chunk_size
+        heartbeat_every = max(1, int(os.getenv("GEN_HEARTBEAT_EVERY_CHUNKS", "1")))
         try:
             # Process in chunks to manage memory
             for i in range(0, len(texts), chunk_size):
                 chunk_texts = texts[i : i + chunk_size]
+                chunk_idx = (i // chunk_size) + 1
+                chunk_start = perf_counter()
 
                 # Tokenize chunk
                 model_inputs = self.move_inputs_to_device(self.tokenize(chunk_texts))
+                if chunk_idx % heartbeat_every == 0:
+                    token_count = int(model_inputs["input_ids"].shape[1])
+                    logger.info(
+                        "Generating sub-chunk %s/%s (batch=%s, prompt_tokens=%s)",
+                        chunk_idx,
+                        total_chunks,
+                        len(chunk_texts),
+                        token_count,
+                    )
 
                 # Generate responses
                 generated_ids = self.model.generate(
                     **model_inputs, **self.generation_config
                 )
+                if chunk_idx % heartbeat_every == 0:
+                    logger.info(
+                        "Completed sub-chunk %s/%s in %.2fs",
+                        chunk_idx,
+                        total_chunks,
+                        perf_counter() - chunk_start,
+                    )
 
                 # Decode outputs
                 decoded = self.tokenizer.batch_decode(

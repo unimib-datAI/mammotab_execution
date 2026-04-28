@@ -209,5 +209,13 @@ def process_with_retry(batch_items, initial_batch_size):
 # Create a single DataLoader with the maximum batch size
 dataloader = DataLoader(custom_dataset, batch_size=INITIAL_BATCH_SIZE)
 
-for batch in tqdm(dataloader):
+for batch_idx, batch in enumerate(tqdm(dataloader), start=1):
+    prompt_count = len(batch.get("prompt", []))
+    first_table = batch.get("table", ["N/A"])[0] if prompt_count > 0 else "N/A"
+    logging.info(
+        "Starting dataloader batch %s (size=%s, first_table=%s)",
+        batch_idx,
+        prompt_count,
+        first_table,
+    )
     process_with_retry(batch, INITIAL_BATCH_SIZE)
