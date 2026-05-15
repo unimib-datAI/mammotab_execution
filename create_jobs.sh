@@ -30,7 +30,7 @@ for chunk in chunks/${CHUNK_PREFIX}*.jsonl; do
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=$SLURM_MEM
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #SBATCH --output=/scratch_share/datai/dchieregato/mammotab_execution/job_logs/out_%x_%j.log
 #SBATCH --error=/scratch_share/datai/dchieregato/mammotab_execution/job_logs/error_%x_%j.log
 ### Definitions
