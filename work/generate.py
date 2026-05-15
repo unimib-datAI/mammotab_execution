@@ -31,7 +31,8 @@ def resolve_dtype(dtype: Optional[str], device: str):
     normalized = dtype.strip().lower()
     if normalized not in DTYPE_ALIASES:
         valid_values = ", ".join(sorted(DTYPE_ALIASES))
-        raise ValueError(f"Invalid model dtype: {dtype}. Valid values: {valid_values}")
+        raise ValueError(
+            f"Invalid model dtype: {dtype}. Valid values: {valid_values}")
 
     return DTYPE_ALIASES[normalized]
 
@@ -54,46 +55,26 @@ class LLM:
         model_name: str,
         tokenizer_name: str,
         device: Optional[str] = None,
-        load_in_4bit: bool = False,
-        load_in_8bit: bool = False,
         adapter_path: Optional[str] = None,
         offload_dir: Optional[str] = None,
         model_dtype: Optional[str] = None,
     ):
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.dtype = resolve_dtype(model_dtype or os.getenv("MODEL_DTYPE"), self.device)
+        self.device = device or (
+            "cuda" if torch.cuda.is_available() else "cpu")
+        self.dtype = resolve_dtype(
+            model_dtype or os.getenv("MODEL_DTYPE"), self.device)
         adapter_path = normalize_adapter_path(adapter_path)
         offload_dir = offload_dir or os.getenv("OFFLOAD_DIR")
-        # In 4-bit mode we avoid automatic CPU/disk offload: if it does not fit
-        # in VRAM we prefer failing fast over appearing stuck for a long time.
-        if offload_dir is None and self.device == "cuda" and not load_in_4bit:
-            offload_dir = os.path.join(os.getenv("TMPDIR", "/tmp"), "model_offload")
-
         if offload_dir:
             Path(offload_dir).mkdir(parents=True, exist_ok=True)
 
-        if load_in_4bit and load_in_8bit:
-            raise ValueError("Only one of load_in_4bit and load_in_8bit can be true.")
-
-        if self.device == "cuda" and load_in_4bit:
-            device_map = {"": 0}
-        else:
-            device_map = "auto" if self.device == "cuda" else None
-        quantization_config = None
-        if load_in_4bit:
-            quantization_config = BitsAndBytesConfig(load_in_4bit=True)
-        elif load_in_8bit:
-            quantization_config = BitsAndBytesConfig(
-                load_in_8bit=True,
-                llm_int8_enable_fp32_cpu_offload=True,
-            )
+        device_map = "auto" if self.device == "cuda" else None
 
         # Model configuration
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             device_map=device_map,
             dtype=self.dtype,
-            quantization_config=quantization_config,
             cache_dir=cache_dir,
             trust_remote_code=True,
             low_cpu_mem_usage=True,
@@ -179,16 +160,18 @@ class LLM:
         """Optimized batch generation with memory management"""
         responses = []
         total_chunks = (len(texts) + chunk_size - 1) // chunk_size
-        heartbeat_every = max(1, int(os.getenv("GEN_HEARTBEAT_EVERY_CHUNKS", "1")))
+        heartbeat_every = max(
+            1, int(os.getenv("GEN_HEARTBEAT_EVERY_CHUNKS", "1")))
         try:
             # Process in chunks to manage memory
             for i in range(0, len(texts), chunk_size):
-                chunk_texts = texts[i : i + chunk_size]
+                chunk_texts = texts[i: i + chunk_size]
                 chunk_idx = (i // chunk_size) + 1
                 chunk_start = perf_counter()
 
                 # Tokenize chunk
-                model_inputs = self.move_inputs_to_device(self.tokenize(chunk_texts))
+                model_inputs = self.move_inputs_to_device(
+                    self.tokenize(chunk_texts))
                 if chunk_idx % heartbeat_every == 0:
                     token_count = int(model_inputs["input_ids"].shape[1])
                     logger.info(
@@ -217,7 +200,8 @@ class LLM:
                     skip_special_tokens=True,
                     clean_up_tokenization_spaces=True,
                 )
-                responses.extend(self.get_response(output) for output in decoded)
+                responses.extend(self.get_response(output)
+                                 for output in decoded)
 
             return responses
 
