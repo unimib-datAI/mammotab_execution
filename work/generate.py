@@ -55,6 +55,8 @@ class LLM:
         model_name: str,
         tokenizer_name: str,
         device: Optional[str] = None,
+        load_in_4bit: bool = False,
+        load_in_8bit: bool = False,
         adapter_path: Optional[str] = None,
         offload_dir: Optional[str] = None,
         model_dtype: Optional[str] = None,
@@ -68,13 +70,25 @@ class LLM:
         if offload_dir:
             Path(offload_dir).mkdir(parents=True, exist_ok=True)
 
+        if load_in_4bit and load_in_8bit:
+            raise ValueError("Only one of load_in_4bit and load_in_8bit can be true.")
+
         device_map = "auto" if self.device == "cuda" else None
+        quantization_config = None
+        if load_in_4bit:
+            quantization_config = BitsAndBytesConfig(load_in_4bit=True)
+        elif load_in_8bit:
+            quantization_config = BitsAndBytesConfig(
+                load_in_8bit=True,
+                llm_int8_enable_fp32_cpu_offload=True,
+            )
 
         # Model configuration
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             device_map=device_map,
             dtype=self.dtype,
+            quantization_config=quantization_config,
             cache_dir=cache_dir,
             trust_remote_code=True,
             low_cpu_mem_usage=True,
