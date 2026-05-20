@@ -251,26 +251,29 @@ class LLM:
         logger.info("Input tensors will be placed on %s", self.input_device)
 
         norm_device = self._resolve_device_from_map(device_map, "model.norm")
-        lm_head_device = self._resolve_device_from_map(device_map, "lm_head")
-        if norm_device is None or lm_head_device is None:
+        norm_module = self._find_module("model.norm")
+        if norm_device is None and norm_module is not None:
+            norm_device = self._module_device(norm_module)
+
+        lm_head_module = self._find_module("lm_head")
+        if norm_device is None or lm_head_module is None:
+            return
+
+        lm_head_device = self._module_device(lm_head_module)
+        if lm_head_device is None:
             return
 
         if norm_device != lm_head_device:
             logger.warning(
-                "Aligning lm_head device from %s to %s to avoid cross-device matmul errors",
+                "Aligning lm_head runtime device from %s to %s to avoid cross-device matmul errors",
                 lm_head_device,
                 norm_device,
             )
-            output_embeddings = self.model.get_output_embeddings()
-            if output_embeddings is not None:
-                output_embeddings.to(norm_device)
-                if hasattr(self.model, "set_output_embeddings"):
-                    self.model.set_output_embeddings(output_embeddings)
-                elif hasattr(self.model, "lm_head"):
-                    self.model.lm_head = output_embeddings
+            lm_head_module.to(norm_device)
             device_map["lm_head"] = str(norm_device)
-        else:
-            logger.info("lm_head already aligned on %s", lm_head_device)
+
+        aligned_device = self._module_device(lm_head_module)
+        logger.info("lm_head runtime device is %s", aligned_device)
 
     @staticmethod
     def _resolve_device_from_map(device_map: dict, module_name: str):
@@ -289,4 +292,39 @@ class LLM:
                 return torch.device(device_value)
             if device_value == "cpu":
                 return torch.device("cpu")
+        return None
+
+    def _module_device(self, module):
+        for param in module.parameters(recurse=True):
+            return param.device
+        for buffer in module.buffers(recurse=True):
+            return buffer.device
+        return None
+
+    def _find_module(self, module_name: str):
+        candidates = [self.model]
+
+        base_model = getattr(self.model, "base_model", None)
+        if base_model is not None:
+            candidates.append(base_model)
+
+        nested_model = getattr(base_model, "model", None) if base_model is not None else None
+        if nested_model is not None:
+            candidates.append(nested_model)
+
+        direct_model = getattr(self.model, "model", None)
+        if direct_model is not None:
+            candidates.append(direct_model)
+
+        for candidate in candidates:
+            try:
+                module = candidate.get_submodule(module_name)
+                if module is not None:
+                    return module
+            except Exception:
+                continue
+
+        for candidate in candidates:
+            if module_name == "lm_head" and hasattr(candidate, "lm_head"):
+                return getattr(candidate, "lm_head")
         return None
