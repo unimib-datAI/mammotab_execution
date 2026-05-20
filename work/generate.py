@@ -113,6 +113,7 @@ class LLM:
                 low_cpu_mem_usage=True,
             )
 
+        self._configure_multi_gpu_devices()
         self.model.eval()
 
         # Tokenizer with optimized settings
@@ -155,8 +156,9 @@ class LLM:
         if self.device != "cuda":
             return model_inputs
 
+        input_device = getattr(self, "input_device", torch.device("cuda:0"))
         return {
-            key: value.to(self.device) if torch.is_tensor(value) else value
+            key: value.to(input_device) if torch.is_tensor(value) else value
             for key, value in model_inputs.items()
         }
 
@@ -227,3 +229,64 @@ class LLM:
                 del generated_ids
             if self.device == "cuda":
                 torch.cuda.empty_cache()
+
+    def _configure_multi_gpu_devices(self):
+        self.input_device = torch.device("cuda:0") if self.device == "cuda" else torch.device("cpu")
+        if self.device != "cuda":
+            return
+
+        device_map = getattr(self.model, "hf_device_map", None)
+        if not isinstance(device_map, dict):
+            base_model = getattr(self.model, "base_model", None)
+            device_map = getattr(base_model, "hf_device_map", None)
+            if not isinstance(device_map, dict) and base_model is not None:
+                nested_base = getattr(base_model, "model", None)
+                device_map = getattr(nested_base, "hf_device_map", None)
+        if not isinstance(device_map, dict) or not device_map:
+            return
+
+        embed_device = self._resolve_device_from_map(device_map, "model.embed_tokens")
+        if embed_device is not None:
+            self.input_device = embed_device
+        logger.info("Input tensors will be placed on %s", self.input_device)
+
+        norm_device = self._resolve_device_from_map(device_map, "model.norm")
+        lm_head_device = self._resolve_device_from_map(device_map, "lm_head")
+        if norm_device is None or lm_head_device is None:
+            return
+
+        if norm_device != lm_head_device:
+            logger.warning(
+                "Aligning lm_head device from %s to %s to avoid cross-device matmul errors",
+                lm_head_device,
+                norm_device,
+            )
+            output_embeddings = self.model.get_output_embeddings()
+            if output_embeddings is not None:
+                output_embeddings.to(norm_device)
+                if hasattr(self.model, "set_output_embeddings"):
+                    self.model.set_output_embeddings(output_embeddings)
+                elif hasattr(self.model, "lm_head"):
+                    self.model.lm_head = output_embeddings
+            device_map["lm_head"] = str(norm_device)
+        else:
+            logger.info("lm_head already aligned on %s", lm_head_device)
+
+    @staticmethod
+    def _resolve_device_from_map(device_map: dict, module_name: str):
+        device_value = device_map.get(module_name)
+        if device_value is None:
+            return None
+
+        if isinstance(device_value, torch.device):
+            return device_value
+        if isinstance(device_value, int):
+            return torch.device(f"cuda:{device_value}")
+        if isinstance(device_value, str):
+            if device_value.isdigit():
+                return torch.device(f"cuda:{device_value}")
+            if device_value.startswith("cuda:"):
+                return torch.device(device_value)
+            if device_value == "cpu":
+                return torch.device("cpu")
+        return None
