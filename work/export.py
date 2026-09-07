@@ -12,38 +12,102 @@ NIL_RESPONSE = "<NIL [DESCRIPTION] Not in list [TYPE] None>"
 
 class Export:
     def __init__(self, db: Database):
-        self.TOTAL_CELLS = 84907
         self.db = db
         self.stats = self.load_stats()
+        self.stats_schema = self._detect_stats_schema()
+        default_total_cells = 84185 if self.stats_schema == "legacy" else 84907
+        self.TOTAL_CELLS = int(os.getenv("TOTAL_CELLS", default_total_cells))
 
     def load_stats(self):
         stats_dict = {}
         with open("./general_stats_per_table.json", "r") as file:
-            for data in json.load(file):
-                stats_dict[data["table"]] = data["stats"]
+            data = json.load(file)
+
+        if not isinstance(data, list):
+            raise ValueError(
+                "general_stats_per_table.json must contain a list of table records"
+            )
+
+        for index, table_data in enumerate(data):
+            if not isinstance(table_data, dict):
+                raise ValueError(
+                    "Invalid table record at index "
+                    f"{index}: expected an object"
+                )
+            table = table_data.get("table")
+            table_stats = table_data.get("stats")
+            if not isinstance(table, str) or not isinstance(table_stats, dict):
+                raise ValueError(
+                    "Invalid table record at index "
+                    f"{index}: expected string 'table' and object 'stats'"
+                )
+            if table in stats_dict:
+                raise ValueError(
+                    f"Duplicate table ID in general_stats_per_table.json: {table}"
+                )
+            stats_dict[table] = table_stats
 
         return stats_dict
 
+    def _detect_stats_schema(self) -> str:
+        """Identify the historical stats_needed schema by its available fields."""
+        available_fields = {
+            field
+            for table_stats in self.stats.values()
+            for field in table_stats
+        }
+        enriched_fields = {
+            "col_tag",
+            "row_tag",
+            "table_generic_types",
+            "table_specific_types",
+        }
+        return "enriched" if enriched_fields.issubset(available_fields) else "legacy"
+
+    @staticmethod
+    def _numeric_stat_value(value):
+        if isinstance(value, bool):
+            return float(value)
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value)
+            except ValueError:
+                return None
+        return None
+
     def truncate(self, number, digits) -> float:
         # Improve accuracy with floating point operations, to avoid truncate(16.4, 2) = 16.39 or truncate(-1.13, 2) = -1.12
-        nbDecimals = len(str(number).split(".")[1])
+        number_string = str(number)
+        if "." not in number_string:
+            return number
+        nbDecimals = len(number_string.split(".", 1)[1])
         if nbDecimals <= digits:
             return number
         stepper = 10.0**digits
         return math.trunc(stepper * number) / stepper
 
     def _validate_stats_for_documents(self, documents):
-        """Refuse to export results when the metadata is for another dataset."""
+        """Refuse to export results when metadata and results use different tables."""
         result_tables = {document.table for document in documents}
         missing_tables = sorted(result_tables.difference(self.stats))
-        if missing_tables:
+        extra_tables = sorted(set(self.stats).difference(result_tables))
+        if missing_tables or extra_tables:
             examples = ", ".join(missing_tables[:5])
             if len(missing_tables) > 5:
                 examples += ", ..."
+            if extra_tables:
+                extra_examples = ", ".join(extra_tables[:5])
+                if len(extra_tables) > 5:
+                    extra_examples += ", ..."
+                if examples:
+                    examples += "; "
+                examples += f"statistics-only tables: {extra_examples}"
             raise ValueError(
                 "Dataset/statistics mismatch: "
-                f"{len(missing_tables)} table(s) in the inference results are "
-                "missing from general_stats_per_table.json "
+                f"{len(missing_tables)} table(s) missing from statistics and "
+                f"{len(extra_tables)} table(s) missing from inference results "
                 f"(examples: {examples}). Refusing to export incomplete "
                 "challenge statistics. Use the metadata generated for the "
                 "same mammotab_sample.jsonl release."
@@ -60,9 +124,94 @@ class Export:
             return None
         return f"{math.trunc(numerator / denominator * 100 * 10) / 10}%"
 
+    def _compute_legacy_stats(self, documents):
+        """Compute metrics for the historical stats_needed schema.
+
+        The legacy file has per-table counters but no table-size or table-type
+        fields. Metrics are therefore calculated only for fields available in
+        that file, with denominators based on the evaluated unique cells.
+        """
+        stats_keys = []
+        seen_stats_keys = set()
+        for table_stats in self.stats.values():
+            for stat in table_stats:
+                if stat not in seen_stats_keys and stat != "nils":
+                    stats_keys.append(stat)
+                    seen_stats_keys.add(stat)
+
+        model_stats = {stat: 0 for stat in stats_keys}
+        model_stats_total = {stat: 0 for stat in stats_keys}
+        cell_set = set()
+        total_correct = 0
+        total_computed = 0
+        total_time = 0.0
+        correct_nils = 0
+        total_nils = 0
+
+        for document in documents:
+            table = document.table
+            cell_key = (table, document.row, document.column)
+            if cell_key in cell_set:
+                continue
+            cell_set.add(cell_key)
+            total_computed += 1
+
+            if document.avg_time is not None:
+                total_time += document.avg_time
+            if document.correct:
+                total_correct += 1
+
+            if self._is_nil_response(document.correct_response):
+                total_nils += 1
+                if document.correct:
+                    correct_nils += 1
+
+            for stat, raw_value in self.stats[table].items():
+                if stat == "nils":
+                    continue
+                stat_value = self._numeric_stat_value(raw_value)
+                if stat_value is None or stat_value <= 0:
+                    continue
+                model_stats_total[stat] += 1
+                if document.correct:
+                    model_stats[stat] += 1
+
+        final_stats = {
+            stat: self._format_percentage(model_stats[stat], model_stats_total[stat])
+            for stat in stats_keys
+        }
+        model_stats["nils"] = correct_nils
+        final_stats["nils"] = self._format_percentage(correct_nils, total_nils)
+
+        accuracy = (
+            self.truncate(total_correct / self.TOTAL_CELLS, 3)
+            if self.TOTAL_CELLS
+            else None
+        )
+        return {
+            "system": platform.system(),
+            "machine": platform.machine(),
+            "processor": platform.processor(),
+            "cuda": torch.cuda.get_device_name()
+            if torch.cuda.is_available()
+            else "CPU",
+            "model_name": model_name,
+            "ne_cells": self.TOTAL_CELLS,
+            "total_cells": self.TOTAL_CELLS,
+            "too_long": max(self.TOTAL_CELLS - total_computed, 0),
+            "total_time": self.truncate(total_time, 3),
+            "accuracy": accuracy,
+            "total_correct": total_correct,
+            "stats": model_stats,
+            "final_stats": final_stats,
+        }
+
     def compute_stats(self):
         all_documents: list[Cea] = self.db.get_all_documents(model_name=model_name)
         self._validate_stats_for_documents(all_documents)
+
+        if self.stats_schema == "legacy":
+            return self._compute_legacy_stats(all_documents)
 
         # First, calculate accuracy per table
         table_statistics = {}
