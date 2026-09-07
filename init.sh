@@ -1,3 +1,3 @@
 cp .env.example .env
-fileId="18nTELcDR6RvjIlaNrq6z6BLc8pYGHLzy"
+fileId="1f02LvZtpYomTKN8E6xVQTNy8AGURkAms"
 curl -L "https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t" -o "work/mammotab_sample.jsonl"
