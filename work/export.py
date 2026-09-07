@@ -7,6 +7,7 @@ import platform
 import os
 
 model_name = os.getenv("MODEL_NAME")
+NIL_RESPONSE = "<NIL [DESCRIPTION] Not in list [TYPE] None>"
 
 
 class Export:
@@ -31,8 +32,37 @@ class Export:
         stepper = 10.0**digits
         return math.trunc(stepper * number) / stepper
 
+    def _validate_stats_for_documents(self, documents):
+        """Refuse to export results when the metadata is for another dataset."""
+        result_tables = {document.table for document in documents}
+        missing_tables = sorted(result_tables.difference(self.stats))
+        if missing_tables:
+            examples = ", ".join(missing_tables[:5])
+            if len(missing_tables) > 5:
+                examples += ", ..."
+            raise ValueError(
+                "Dataset/statistics mismatch: "
+                f"{len(missing_tables)} table(s) in the inference results are "
+                "missing from general_stats_per_table.json "
+                f"(examples: {examples}). Refusing to export incomplete "
+                "challenge statistics. Use the metadata generated for the "
+                "same mammotab_sample.jsonl release."
+            )
+
+    @staticmethod
+    def _is_nil_response(response) -> bool:
+        """Return True for the canonical NIL response, ignoring outer whitespace."""
+        return isinstance(response, str) and response.strip() == NIL_RESPONSE
+
+    @staticmethod
+    def _format_percentage(numerator, denominator):
+        if denominator == 0:
+            return None
+        return f"{math.trunc(numerator / denominator * 100 * 10) / 10}%"
+
     def compute_stats(self):
         all_documents: list[Cea] = self.db.get_all_documents(model_name=model_name)
+        self._validate_stats_for_documents(all_documents)
 
         # First, calculate accuracy per table
         table_statistics = {}
@@ -167,6 +197,11 @@ class Export:
                     if document.correct:
                         total_correct += 1
 
+                    if self._is_nil_response(document.correct_response):
+                        total_nils += 1
+                        if document.correct:
+                            nils += 1
+
                     # Process cell-level stats (always)
                     for stat in self.stats[table]:
                         if stat in needed_stats and stat not in table_level_stats:
@@ -179,14 +214,6 @@ class Export:
 
                             if document.correct and stat_value > 0:
                                 model_stats[stat] += 1
-
-                            if (
-                                document.correct_response
-                                == "<NIL [DESCRIPTION] Not in list [TYPE] None>"
-                            ):
-                                total_nils += 1
-                                if document.correct:
-                                    nils += 1
 
                     # Process table-level stats (only for tables above threshold)
                     if table in tables_above_threshold:
@@ -270,13 +297,15 @@ class Export:
         }
 
         model_stats["nils"] = nils
-        final_stats["nils"] = f"{math.trunc(nils / total_nils * 100 * 10) / 10}%"
+        final_stats["nils"] = self._format_percentage(nils, total_nils)
 
         return {
             "system": platform.system(),
             "machine": platform.machine(),
             "processor": platform.processor(),
-            "cuda": torch.cuda.get_device_name(),
+            "cuda": torch.cuda.get_device_name()
+            if torch.cuda.is_available()
+            else "CPU",
             "model_name": model_name,
             "ne_cells": self.TOTAL_CELLS,
             "total_time": self.truncate(total_time, 3),
